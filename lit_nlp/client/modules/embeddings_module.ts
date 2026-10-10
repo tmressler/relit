@@ -21,7 +21,7 @@ import '../elements/tooltip';
 import '@material/mwc-icon';
 
 import * as d3 from 'd3';
-import {Dataset, Point3D, ScatterGL} from 'scatter-gl';
+import {Dataset, Point3D, ScatterGL, type ScatterGLParams} from 'scatter-gl';
 import {html, TemplateResult} from 'lit';
 import {customElement} from 'lit/decorators.js';
 import {computed, makeObservable, observable} from 'mobx';
@@ -316,20 +316,55 @@ export class EmbeddingsModule extends LitModule {
     }
   }
 
+  /**
+   * Returns the theme-dependent colors used to render the ScatterGL canvas,
+   * read from the globally injected theme tokens (see lib/theme.ts).
+   */
+  private getScatterThemeColors() {
+    const computedStyle = getComputedStyle(document.documentElement);
+    const read = (name: string, fallback: string) =>
+        computedStyle.getPropertyValue(name).trim() || fallback;
+    return {
+      bg: read('--lit-surface', '#ffffff'),
+      fg: read('--lit-on-surface', '#202124'),
+    };
+  }
+
   override firstUpdated() {
     const container =
         this.shadowRoot!.getElementById('scatter-gl-container')!;
+
+    const {bg, fg} = this.getScatterThemeColors();
+    // scatter-gl hardcodes a white canvas with dark hover-label text and
+    // exposes no runtime style setter, so the theme-dependent colors are
+    // read from the global tokens here and re-applied on theme changes
+    // (see applyThemeToScatterGL).
+    const scatterStyles: NonNullable<ScatterGLParams['styles']> = {
+      // The library's typings declare this as a number, but it accepts and
+      // defaults to CSS color strings.
+      backgroundColor: bg as unknown as number,
+      // Applies fog to points that are further than 4x the distance between
+      // the closest and furthest points from the camera along its view-plane
+      // normal. This can induce odd behavior depending on view transform and
+      // the shape of the dataset, but generally ensures points are visible
+      fog: {threshold: 4, color: bg},
+      // Hover labels are drawn onto the canvas; default is black text with a
+      // white halo, which is unreadable on the dark canvas.
+      label: {
+        fillColorSelected: fg,
+        fillColorHover: fg,
+        strokeColorSelected: bg,
+        strokeColorHover: bg,
+      },
+      label3D: {backgroundColor: bg},
+    };
 
     this.scatterGL = new ScatterGL(container, {
       pointColorer: (i, selectedIndices, hoverIndex) =>
           this.pointColorer(i, selectedIndices, hoverIndex),
       onSelect: this.onSelect.bind(this),
       onHover: this.onHover.bind(this),
-      // Applies fog to points that are further than 4x the distance between
-      // the closest and furthest points from the camera along its view-plane
-      // normal. This can induce odd behavior depending on view transform and
-      // the shape of the dataset, but generally ensures points are visible
-      styles: {fog: {threshold: 4}},
+      styles: scatterStyles,
       rotateOnStart: false
     });
 
@@ -372,6 +407,10 @@ export class EmbeddingsModule extends LitModule {
     ];
     this.reactImmediately(dataChanges, () => {this.updateScatterGL();});
 
+    // Re-apply theme-dependent canvas colors when the theme changes.
+    this.react(
+        () => this.appState.theme, () => {this.applyThemeToScatterGL();});
+
     // Update the selection based on user interaction.
     this.reactImmediately(
         () => this.selectionService.selectedIds,
@@ -410,6 +449,34 @@ export class EmbeddingsModule extends LitModule {
     scatterGL.render(scatterGLDataset);
     spriteImage ?
         scatterGL.setSpriteRenderMode() : scatterGL.setPointRenderMode();
+  }
+
+  /**
+   * Updates the colors of an already-created ScatterGL to match the current
+   * theme. scatter-gl exposes no public style setter, so this patches the
+   * live styles object (shared with the internal ScatterPlot) and the WebGL
+   * renderer's clear color directly, then repaints without re-creating the
+   * renderer so the camera position is preserved.
+   */
+  private applyThemeToScatterGL() {
+    const {scatterGL} = this;
+    if (scatterGL == null) return;
+    const {bg, fg} = this.getScatterThemeColors();
+    // tslint:disable-next-line:no-any
+    const gl = scatterGL as any;
+    const styles = gl.styles;
+    if (styles == null) return;
+    styles.backgroundColor = bg;
+    styles.fog.color = bg;
+    styles.label.fillColorSelected = fg;
+    styles.label.fillColorHover = fg;
+    styles.label.strokeColorSelected = bg;
+    styles.label.strokeColorHover = bg;
+    styles.label3D.backgroundColor = bg;
+    // tslint:disable-next-line:no-any
+    const renderer = (gl.scatterPlot as any)?.renderer;
+    renderer?.setClearColor(bg, 1);
+    this.updateScatterGL();
   }
 
   // Maps from unique identifiers of points in inputData to indices of points in

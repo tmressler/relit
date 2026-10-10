@@ -109,6 +109,11 @@ class AnnotatedText extends LitElement {
       } else if (spans.length > 0) {
         style['background'] = spans[0]?.color ?? DEFAULT_SPAN_BACKGROUND;
       }
+      if (style['background'] != null) {
+        /* Span backgrounds are fixed light (viz/pastel) colors in both
+         * themes, so keep the text dark for contrast. */
+        style['color'] = '#202124';
+      }
       chunks.push(html`<span class=${classes} style=${styleMap(style)}>${chunk}</span>`);
     }
     if (this.isURL) {

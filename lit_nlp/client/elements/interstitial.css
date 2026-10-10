@@ -26,7 +26,7 @@
 }
 
 .interstitial p {
-  color: #5f6368;
+  color: var(--lit-neutral-700);
 }
 
 .interstitial strong {

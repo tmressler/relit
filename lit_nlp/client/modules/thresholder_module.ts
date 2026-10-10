@@ -188,7 +188,7 @@ export class ThresholderModule extends LitModule {
     const buttonStyles = {
       'background': 'transparent',
       'border-radius': '4px',
-      'border': '1px solid rgb(189, 193, 198)',
+      'border': '1px solid var(--lit-neutral-400)',
       'color': 'rgb(26, 115, 232)'
     };
     const columnNames: Array<string|ColumnHeader> = ['Facet'];

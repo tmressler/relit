@@ -6,7 +6,7 @@
 }
 
 #overlay {
-  background: rgba(4, 29, 51, .47);
+  background: var(--lit-overlay);
   width: 100vw;
   height: 100vh;
   top: 0;
@@ -26,7 +26,7 @@
   height: 80vh;
   width: 80vw;
   box-sizing: border-box;
-  background-color: white;
+  background-color: var(--lit-surface);
   box-shadow: var(--lit-box-shadow);
   display: flex;
   flex-direction: column;
@@ -44,7 +44,7 @@
 
 #title-bar {
   font-family: 'Google Sans', sans;
-  border-bottom: 1px solid #dadce0;
+  border-bottom: 1px solid var(--lit-outline);
   font-size: 24px;
   line-height: 32px;
   padding: 16px;
@@ -58,15 +58,15 @@
   flex-direction: column;
   justify-content: space-between;
   width: 293px;
-  border-right: 1px solid #dadce0;
+  border-right: 1px solid var(--lit-outline);
 }
 
 #links {
   font-family: 'Google Sans', sans;
   display: flex;
   justify-content: center;
-  color: grey;
-  border-top: 1px solid #dadce0;
+  color: var(--lit-neutral-500);
+  border-top: 1px solid var(--lit-outline);
   height: 60px;
   align-items: center;
 }
@@ -77,7 +77,7 @@ a {
 }
 
 a.link-out {
-  color: #888;
+  color: var(--lit-neutral-500);
   padding: 0 7px;
 }
 
@@ -96,12 +96,12 @@ a:hover {
   cursor: pointer;
 }
 .tab:hover {
-  background: #f4fcfe;
-  color: #129eaf;
+  background: var(--lit-hover-accent-bg);
+  color: var(--lit-accent-bright);
 }
 .tab.selected {
-  background: #e4f7fb;
-  color: #129eaf
+  background: var(--lit-selected-bg);
+  color: var(--lit-accent-bright)
 }
 
 #main-panel {
@@ -115,7 +115,7 @@ a:hover {
 #bottombar {
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid #dadce0;
+  border-top: 1px solid var(--lit-outline);
   height: 60px;
   align-items: center;
   padding: 0 32px;
@@ -123,10 +123,10 @@ a:hover {
 
 #state {
   font-size: 12px;
-  color: #888;
+  color: var(--lit-neutral-500);
 }
 .info {
-  color: #098591;
+  color: var(--lit-accent);
 }
 
 #buttons-container,
@@ -159,7 +159,7 @@ a:hover {
 }
 
 .config-list {
-  border: 1px solid #dadce0;
+  border: 1px solid var(--lit-outline);
   flex: 1 1;
   margin: 16px;
   overflow-y: scroll;
@@ -168,7 +168,7 @@ a:hover {
 .config-line {
   width: 100%;
   min-width: max-content;
-  border-bottom: 1px solid #dadce0;
+  border-bottom: 1px solid var(--lit-outline);
   display: flex;
   justify-content: space-between;
   gap: 4px;
@@ -177,7 +177,7 @@ a:hover {
 }
 
 .config-line.selected {
-  background: #e4f7fb;
+  background: var(--lit-selected-bg);
 }
 .config-line.disabled mwc-formfield,
 .config-line.disabled .description-preview,
@@ -185,7 +185,7 @@ a:hover {
   opacity: 0.5;
 }
 .config-line:hover {
-  background: #f4fcfe;
+  background: var(--lit-hover-accent-bg);
 }
 
 .rows-title {
@@ -276,10 +276,10 @@ a:hover {
 .expanded-info {
   display: flex;
   max-height: 0;
-  background: #f8f9fa;
+  background: var(--lit-surface-variant);
   overflow: hidden;
   font-size: 11px;
-  color: #3c4043;
+  color: var(--lit-neutral-800);
   box-sizing: border-box;
 }
 
@@ -311,7 +311,7 @@ a:hover {
   gap: 4px;
   padding: 6px 6px 6px 0;
   max-height: 25vh;
-  border-bottom: 1px solid #dadce0;
+  border-bottom: 1px solid var(--lit-outline);
 }
 
 .expanded-info > * {
@@ -343,11 +343,11 @@ a:hover {
 
 .indent-line {
   padding-left: 7px;
-  border-left: 1px solid #dadce0;
+  border-left: 1px solid var(--lit-outline);
 }
 
 .error {
-  color: #c5221f !important;
+  color: var(--google-red-700) !important;
 }
 
 .config-title {
@@ -359,7 +359,7 @@ a:hover {
 
 .description {
   padding: 0 16px 0 16px;
-  color: #888;
+  color: var(--lit-neutral-500);
 }
 
 /**
@@ -379,13 +379,13 @@ a:hover {
 
 .status {
   padding: 0 16px;
-  color: #888;
+  color: var(--lit-neutral-500);
   display: flex;
   align-items: center;
 }
 
 .status.selected {
-  color: #129eaf;
+  color: var(--lit-accent-bright);
 }
 .status mwc-icon {
   padding-right: 5px;

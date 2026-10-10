@@ -33,7 +33,7 @@ import {FeatureSalience as FeatureSalienceLitType, LitTypeWithVocab, SingleField
 import {IndexedInput, ModelInfoMap} from '../lib/types';
 import * as utils from '../lib/utils';
 import {findSpecKeys} from '../lib/utils';
-import {SignedSalienceCmap} from '../services/color_service';
+import {makeSalienceCmap, SalienceCmap} from '../services/color_service';
 import {type NumericFeatureBins} from '../services/group_service';
 import {AppState, GroupService} from '../services/services';
 
@@ -117,7 +117,9 @@ export class FeatureAttributionModule extends LitModule {
   // ---- Instance Properties ----
 
   private readonly groupService = app.getService(GroupService);
-  private readonly colorMap = new SignedSalienceCmap();
+  @computed private get colorMap(): SalienceCmap {
+    return makeSalienceCmap(true, 1.0, this.appState.theme === 'dark');
+  }
   private readonly facetingControl = document.createElement('faceting-control');
 
   @observable private startsOpen?: string = undefined;

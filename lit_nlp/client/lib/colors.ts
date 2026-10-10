@@ -494,6 +494,31 @@ export const CONTINUOUS_UNSIGNED = ramp([
   VIZ_COLORS.dark[3].color
 ]);
 
+/** Dark surface color matching --lit-surface in the dark theme. */
+const DARK_SURFACE = '#202124';
+
+/** Light text color matching --lit-on-surface in the dark theme. */
+const DARK_THEME_ON_SURFACE = '#E8EAED';
+
+/**
+ * Interpolates the given color list along the lightness dimension of LAB
+ * space, linearized to 256 steps, as used by the LAB ramps above.
+ */
+function labSweep(inputs: string[]): string[] {
+  const scale = labLinear(inputs);
+  return d3.range(256).map(i => scale(i/256));
+}
+
+/** Dark theme ramp for signed data: Mage-400 -> Surface -> Cyea-300 */
+export const CONTINUOUS_SIGNED_LAB_DARK = ramp(labSweep([
+  BRAND_COLORS.mage[4].color, DARK_SURFACE, BRAND_COLORS.cyea[3].color
+]));
+
+/** Dark theme ramp for unsigned data: Surface -> Purple */
+export const CONTINUOUS_UNSIGNED_LAB_DARK = ramp(labSweep([
+  DARK_SURFACE, VIZ_COLORS.deep[3].color, VIZ_COLORS.bright[3].color
+]));
+
 /** Sequetial: Discrete, Cyea, 3 classes (Cyea-200/400/600) */
 export const CYEA_DISCRETE: string[] = [
   BRAND_COLORS.cyea[2].color,
@@ -574,11 +599,13 @@ export abstract class SalienceCmap {
    * @param range Range [ymin, ymax] to specify what part of the color ramp to
    *   use. For example, using [0, 0.5] will use only the lighter values on
    *   the first half of the color ramp.
+   * @param dark Whether this map renders on the dark theme, mirroring the
+   *   text color logic for dark color ramps.
    */
   constructor(
       protected gamma = 1.0, protected domain: [number, number] = [0, 1],
       protected cRamp = CONTINUOUS_UNSIGNED_LAB,
-      protected range: [number, number] = [0, 1]) {
+      protected range: [number, number] = [0, 1], protected dark = false) {
     this.myColorScale = d3.scaleSequential(cRamp).domain(domain);
   }
 
@@ -595,6 +622,11 @@ export abstract class SalienceCmap {
    * for this datum
    */
   textCmap(d: number): string {
+    if (this.dark) {
+      // Dark theme ramps run from the dark surface toward brighter, mid-tone
+      // colors, so text is light except on the brightest chips.
+      return d3.lab(this.bgCmap(d)).l > 60 ? DARK_SURFACE : DARK_THEME_ON_SURFACE;
+    }
     return (this.lightness(d) <= 0.5) ? 'black' : 'white';
   }
 
@@ -645,7 +677,27 @@ export class InvertedUnsignedSalienceCmap extends UnsignedSalienceCmap {
 export class SignedSalienceCmap extends SalienceCmap {
   constructor(
       gamma = 1.0, domain: [number, number] = [-1, 1],
-      cRamp = CONTINUOUS_SIGNED_LAB, range: [number, number] = [0, 1]) {
-    super(gamma, domain, cRamp, range);
+      cRamp = CONTINUOUS_SIGNED_LAB, range: [number, number] = [0, 1],
+      dark = false) {
+    super(gamma, domain, cRamp, range, dark);
   }
+}
+
+/**
+ * Creates a SalienceCmap with a color ramp and text colors matching the
+ * given theme.
+ * @param signed Whether the salience values are signed (positive/negative).
+ * @param gamma Gamma correction; see SalienceCmap.
+ * @param dark Whether to render on the dark theme.
+ * @param domain Domain for input scores; defaults per signedness.
+ * @param range Range of the color ramp to use; see SalienceCmap.
+ */
+export function makeSalienceCmap(
+    signed: boolean, gamma = 1.0, dark = false,
+    domain: [number, number] = signed ? [-1, 1] : [0, 1],
+    range: [number, number] = [0, 1]): SalienceCmap {
+  const cRamp = signed ? (dark ? CONTINUOUS_SIGNED_LAB_DARK : CONTINUOUS_SIGNED_LAB) :
+                        (dark ? CONTINUOUS_UNSIGNED_LAB_DARK : CONTINUOUS_UNSIGNED_LAB);
+  return signed ? new SignedSalienceCmap(gamma, domain, cRamp, range, dark) :
+                  new UnsignedSalienceCmap(gamma, domain, cRamp, range, dark);
 }

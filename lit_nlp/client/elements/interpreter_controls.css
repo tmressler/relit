@@ -1,6 +1,6 @@
 .description {
   font-size: 11px;
-  color: rgb(60, 64, 67);
+  color: var(--lit-neutral-800);
 }
 
 /* Reduce excess whitespace after markdown-formatted descriptions */
@@ -42,7 +42,7 @@
 }
 
 .control-name {
-  color: #80868B;
+  color: var(--lit-neutral-600);
   width: 50%;
 }
 

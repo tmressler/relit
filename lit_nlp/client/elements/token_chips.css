@@ -16,7 +16,7 @@
   --token-outline-color: transparent;
   /* color and background set individually vis styleMap */
   --token-bg-color: transparent;
-  --token-text-color: black;
+  --token-text-color: var(--lit-on-surface);
 
   background-color: var(--token-bg-color);
   color: var(--token-text-color);
