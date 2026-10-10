@@ -7,7 +7,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #f5f9fa;
+  background: var(--lit-background);
   max-height: calc(100hv - 77px);   /* lit-app-bar is 77px tall */
 }
 
@@ -143,7 +143,7 @@ lit-widget-group[maximized] {
   align-items: center;
 
   color: var(--lit-neutral-700);
-  background: white;
+  background: var(--lit-surface);
   border: 1px solid var(--lit-neutral-300);
 }
 
@@ -195,7 +195,7 @@ lit-widget-group[maximized] {
 
 .tab {
   font-family: 'Google Sans', sans;
-  border-bottom: 2px solid #dadce0;
+  border-bottom: 2px solid var(--lit-outline);
   box-sizing: border-box;
   cursor: pointer;
   padding: 4px 16px;
@@ -204,13 +204,13 @@ lit-widget-group[maximized] {
 }
 
 .tab:hover{
-  background: #eee;
+  background: var(--lit-hover-bg);
 }
 
 .tab.selected {
   font-weight: bold;
-  border-bottom: 2px solid rgb(47, 140, 155);
-  color: rgb(47, 140, 155);
+  border-bottom: 2px solid var(--lit-cyea-500);
+  color: var(--lit-cyea-500);
 }
 
 .drag-icon {

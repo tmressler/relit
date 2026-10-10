@@ -31,6 +31,25 @@ limitations under the License.
       line-height: 18px;
     }
   </style>
+  <!-- Set the theme class before first paint so native scrollbars and the
+       page background match the user's (stored or system) theme choice.
+       The full theme token sheet is injected by lib/theme.ts at runtime. -->
+  <script>
+    (function() {
+      var theme = null;
+      try {
+        theme = window.localStorage.getItem('lit-theme');
+      } catch (e) { /* ignore */ }
+      if (theme !== 'light' && theme !== 'dark') {
+        theme = (window.matchMedia &&
+                 window.matchMedia('(prefers-color-scheme: dark)').matches) ?
+            'dark' : 'light';
+      }
+      if (theme === 'dark') {
+        document.documentElement.classList.add('lit-dark');
+      }
+    })();
+  </script>
 </head>
 
 

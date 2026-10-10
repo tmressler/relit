@@ -19,17 +19,17 @@
 
 .main-toolbar {
   box-shadow: var(--lit-box-shadow);
-  background-color: white;
-  border-bottom: 1px solid #dadce0;
+  background-color: var(--lit-surface);
+  border-bottom: 1px solid var(--lit-outline);
   min-height: 36px;
 }
 
 .togglable-toolbar-holder {
-  background-color: white;
+  background-color: var(--lit-surface);
   width: fit-content; /* set to 100% to span page */
   border: 1px solid;
   border-radius: 3px;
-  border-color: rgb(218, 220, 224);
+  border-color: var(--lit-outline);
   position: absolute;
 }
 
@@ -92,14 +92,14 @@
 .toggle-example-comparison {
   font-family: Roboto;
   font-size: 14px;
-  color: #3C4043;
+  color: var(--lit-neutral-800);
   cursor: pointer;
   padding: 3px 8px;
   user-select: none;
 }
 
 .text-disabled {
-  color: rgba(60, 64, 67, 0.38);
+  color: var(--lit-neutral-400);
 }
 
 .compare-container {

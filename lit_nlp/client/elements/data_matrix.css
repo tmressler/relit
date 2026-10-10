@@ -40,13 +40,13 @@
 
 .total-title-cell {
   padding: 2px 4px;
-  color: #5f6368;
+  color: var(--lit-neutral-700);
 }
 
 .total-cell {
   padding: 2px 4px;
   font-family: 'Roboto Mono', monospace;
-  color: #5f6368;
+  color: var(--lit-neutral-700);
 }
 
 .axis-title {

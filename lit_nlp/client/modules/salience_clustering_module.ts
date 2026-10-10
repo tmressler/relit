@@ -18,7 +18,7 @@
 import {html, TemplateResult} from 'lit';
 // tslint:disable:no-new-decorators
 import {customElement} from 'lit/decorators.js';
-import {makeObservable, observable} from 'mobx';
+import {computed, makeObservable, observable} from 'mobx';
 
 import {app} from '../core/app';
 import {LitModule} from '../core/lit_module';
@@ -30,7 +30,7 @@ import {CategoryLabel, FieldMatcher, TokenSalience} from '../lib/lit_types';
 import {styles as sharedStyles} from '../lib/shared_styles.css';
 import {CallConfig, IndexedInput, ModelInfoMap} from '../lib/types';
 import {cloneSpec, createLitType, findSpecKeys} from '../lib/utils';
-import {SalienceCmap, SignedSalienceCmap, UnsignedSalienceCmap} from '../services/color_service';
+import {makeSalienceCmap, SalienceCmap} from '../services/color_service';
 import {ColumnData} from '../services/data_service';
 import {DataService} from '../services/services';
 
@@ -62,10 +62,13 @@ interface ClusterInfos {
   [clusterId: number]: Cluster;
 }
 
+/** Which flavor of salience color map a grad key uses. */
+type CmapKind = 'signed'|'unsigned';
+
 interface ClusteringState {
   clusterInfosByField: {[gradKey: string]: ClusterInfos};
   isLoading: boolean;
-  colorMap: {[gradKey: string]: SalienceCmap};
+  colorMap: {[gradKey: string]: CmapKind};
   clusteringConfig: {[gradKey: string]: CallConfig};
 }
 
@@ -93,8 +96,16 @@ export class SalienceClusteringModule extends LitModule {
 
   // For color legend
   private readonly cmapGamma: number = 2.0;
-  private readonly signedCmap = new SignedSalienceCmap(this.cmapGamma);
-  private readonly unsignedCmap = new UnsignedSalienceCmap(this.cmapGamma);
+  @computed private get signedCmap(): SalienceCmap {
+    return makeSalienceCmap(true, this.cmapGamma, this.appState.theme === 'dark');
+  }
+  @computed private get unsignedCmap(): SalienceCmap {
+    return makeSalienceCmap(false, this.cmapGamma, this.appState.theme === 'dark');
+  }
+
+  private cmapForKind(kind: CmapKind): SalienceCmap {
+    return kind === 'signed' ? this.signedCmap : this.unsignedCmap;
+  }
 
   // Mapping from salience mapper to clustering results.
   @observable
@@ -224,7 +235,7 @@ export class SalienceClusteringModule extends LitModule {
       const salienceSpecInfo =
           interpreters[salienceMapper].metaSpec['saliency'] as TokenSalience;
       this.state.clusteringState.colorMap[gradKey] =
-          !!salienceSpecInfo.signed ? this.signedCmap : this.unsignedCmap;
+          !!salienceSpecInfo.signed ? 'signed' : 'unsigned';
     }
     this.runCount++;
   }
@@ -304,7 +315,7 @@ export class SalienceClusteringModule extends LitModule {
     return html`
       ${Object.entries(clusterInfosByField).map(
         ([gradKey, clusterInfo]) => this.renderSingleGradKeyTopTokenInfos(
-          gradKey, clusterInfo, colorMap[gradKey]))}
+          gradKey, clusterInfo, this.cmapForKind(colorMap[gradKey])))}
       ${this.state.clusteringState.isLoading ? this.renderSpinner() : null}`;
     // clang-format on
   }
@@ -419,11 +430,11 @@ export class SalienceClusteringModule extends LitModule {
     // Determine which color maps are currently used.
     const enabledColorMaps: {[key: string]: TemplateResult} = {};
     for (const gradKey of Object.keys(this.state.clusteringState.colorMap)) {
-      if (this.state.clusteringState.colorMap[gradKey] === this.signedCmap) {
+      if (this.state.clusteringState.colorMap[gradKey] === 'signed') {
         enabledColorMaps['Signed'] =
             this.renderColorLegend('Signed', this.signedCmap, 7);
       }
-      if (this.state.clusteringState.colorMap[gradKey] === this.unsignedCmap) {
+      if (this.state.clusteringState.colorMap[gradKey] === 'unsigned') {
         enabledColorMaps['Unsigned'] =
             this.renderColorLegend('Unsigned', this.unsignedCmap, 5);
       }

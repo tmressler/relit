@@ -53,12 +53,12 @@ class DiffSwitch extends LitSwitch {
     return [
       ...LitSwitch.styles, css`
       :not(.selected):not(.disabled) .label-left {
-        color: #a93d00;
+        color: var(--lit-diff-color);
         font-weight: bold;
       }
 
       .selected:not(.disabled) .label-right {
-        color: #129eaf;
+        color: var(--lit-accent-bright);
         font-weight: bold;
       }
     `

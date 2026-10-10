@@ -310,6 +310,18 @@ export class ToolbarComponent extends MobxLitElement {
           </mwc-icon>
         </lit-tooltip>` : null;
 
+    const isDark = this.appState.theme === 'dark';
+    const themeButton = html`
+      <lit-tooltip
+        content=${isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        tooltipPosition="left">
+        <mwc-icon class="icon-button large-icon white-icon icon-margin"
+          id="theme-toggle" slot="tooltip-anchor"
+          @click=${() => { this.appState.toggleTheme(); }}>
+          ${isDark ? 'light_mode' : 'dark_mode'}
+        </mwc-icon>
+      </lit-tooltip>`;
+
     return html`
       ${settingsButton}
       <lit-tooltip content="Copy link to this page" tooltipPosition="left">
@@ -319,6 +331,7 @@ export class ToolbarComponent extends MobxLitElement {
           &nbsp;Copy Link
         </button>
       </lit-tooltip>
+      ${themeButton}
       ${docButton}
     `;
     // clang-format on
