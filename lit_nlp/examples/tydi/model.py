@@ -62,7 +62,7 @@ class TyDiModel(lit_model.Model):
 
     for inp in inputs:
       tokenized_text = self.tokenizer(
-          inp["question"], inp["context"], return_tensors="pt", padding=True
+          inp["question"], inp["context"], return_tensors="pt", padding=True, truncation="only_second"
       ).to(self.device)
       with torch.no_grad():
         results = self.model(
