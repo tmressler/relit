@@ -26,10 +26,10 @@
   max-width: var(--tooltip-max-width);
   width: var(--tooltip-width);
 
-  background-color: #202124;
+  background-color: var(--lit-tooltip-bg);
   opacity: 0.9;
   border-radius: 4px;
-  color: #fff;
+  color: var(--lit-tooltip-fg);
   padding: 0px 8px;
 
   position: absolute;
@@ -58,7 +58,7 @@
 }
 
 .lit-tooltip .tooltip-text a {
-  color: #7bcccc;
+  color: var(--lit-tooltip-link);
 }
 
 /* Show the tooltip text when you mouse over the tooltip container */

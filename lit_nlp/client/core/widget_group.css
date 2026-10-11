@@ -14,7 +14,7 @@
 .wrapper {
   height: 100%;
   box-sizing: border-box;
-  background-color: white;
+  background-color: var(--lit-surface);
   background-clip: content-box;
   display: flex;
   flex-direction: column;
@@ -27,7 +27,7 @@
   line-height: 27px;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid rgb(218, 220, 224);
+  border: 1px solid var(--lit-outline);
   box-sizing: border-box;
   gap: 8px;
 }
@@ -99,7 +99,7 @@ lit-widget {
 
 :host([maximized]) .outside {
   padding: var(--lit-maximized-vpad) var(--lit-maximized-hpad);
-  background: rgba(4, 29, 51, .47);
+  background: var(--lit-overlay);
 }
 
 :host([maximized]) .wrapper {

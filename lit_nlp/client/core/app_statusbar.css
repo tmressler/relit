@@ -17,9 +17,9 @@
 
 .toolbar {
   border-top: 1px solid var(--lit-cyea-300);
-  background-color: var(--lit-majtonal-p-50);
+  background-color: var(--lit-surface-variant);
   width: 100vw;
-  color: var(--lit-cyea-700);
+  color: var(--lit-accent);
   font-size: 13px;
 }
 
@@ -33,12 +33,12 @@
 }
 
 .error {
-  color: red;
+  color: var(--google-red-500);
   cursor: pointer;
 }
 
 .icon-button.error {
-  color: red;
+  color: var(--google-red-500);
 }
 
 .emoji {
@@ -61,7 +61,7 @@
   height: 2px;
   width: 100%;
   margin: 0;
-  background-color: #e4f7fb;
+  background-color: var(--lit-hover-accent-bg);
 }
 
 .progress-line, .progress-line:before {
@@ -71,13 +71,13 @@
 }
 
 .progress-line {
-  background-color: #2f8c9b;
+  background-color: var(--lit-accent);
   display: -webkit-flex;
   display: flex;
 }
 
 .progress-line:before {
-  background-color: #e4f7fb;
+  background-color: var(--lit-accent-bright);
   content: '';
   -webkit-animation: running-progress 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation: running-progress 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
@@ -98,7 +98,7 @@
   height: 80vh;
   width: 80vw;
   box-sizing: border-box;
-  background-color: white;
+  background-color: var(--lit-surface);
   box-shadow: var(--lit-box-shadow);
   display: flex;
   flex-direction: column;
@@ -106,7 +106,7 @@
 }
 
 .model-overlay {
-  background: rgba(4, 29, 51, .47);
+  background: var(--lit-overlay);
   width: 100vw;
   height: 100vh;
   top: 0;

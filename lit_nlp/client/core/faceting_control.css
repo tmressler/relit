@@ -42,7 +42,7 @@
 }
 
 .panel-label {
-  color: var(--lit-cyea-600);
+  color: var(--lit-accent-deep);
   font-size: 14px;
   font-weight: bold;
   margin-right: 12px;

@@ -35,7 +35,7 @@
 }
 
 .search-container-edited .search-input-container {
-  background: var(--lit-bric-50);
+  background: var(--lit-edited-bg);
 }
 
 .checkbox-row {

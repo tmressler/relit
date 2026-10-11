@@ -48,7 +48,7 @@ export class LitSwitch extends LitElement {
       }
 
       .switch-container.disabled {
-        color: rgba(60, 64, 67, 0.38);
+        color: var(--lit-neutral-400);
       }
 
       mwc-switch {

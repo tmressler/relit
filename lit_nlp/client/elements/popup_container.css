@@ -15,7 +15,7 @@
 
 .popup-container {
   padding: 4px;
-  background: white;
+  background: var(--lit-surface);
   border: 1px solid var(--lit-neutral-300);
   border-radius: 4px;
   box-shadow: var(--lit-box-shadow);

@@ -109,7 +109,7 @@
 
 .insert-token-div {
   width: 6px;
-  background: white;
+  background: var(--lit-surface);
   margin-right: 2px;
   margin-bottom: 2px;
   margin-top: 2px;
@@ -160,7 +160,8 @@ select.dropdown {
 }
 
 .entry-edited {
-  background: var(--lit-bric-50);
+  background: var(--lit-edited-bg);
+  color: var(--lit-on-surface);
 }
 
 /* right-align content, particularly dropdowns */
@@ -241,18 +242,19 @@ textarea {
   left: 0;
   margin: 5px;
   cursor: pointer;
-  background: rgb(211,211,211, 0.5);
+  background: var(--lit-image-toggle-bg);
   border-radius: 4px;
   height: 20px;
   width: 20px;
   min-width: 20px;
   --mdc-icon-size: 20px;
-  color: rgb(95, 99, 104);
+  color: var(--lit-neutral-700);
 }
 
 .image-toggle:hover {
   opacity: .8;
-  background: rgb(211,211,211, 0.8);
+  background: var(--lit-image-toggle-bg);
+  filter: brightness(1.1);
 }
 
 mwc-icon.google-icon {

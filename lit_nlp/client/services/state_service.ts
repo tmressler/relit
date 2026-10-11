@@ -19,6 +19,7 @@
 import {action, computed, makeObservable, observable, toJS} from 'mobx';
 
 import {FieldMatcher, ImageBytes} from '../lib/lit_types';
+import {applyTheme, getInitialTheme, type Theme, watchSystemTheme} from '../lib/theme';
 import {defaultValueByField, IndexedInput, Input, type LitCanonicalLayout, type LitComponentLayouts, type LitMetadata, ModelInfo, type ModelInfoMap, ModelSpec, NONE_DS_DICT_KEY, type Spec} from '../lib/types';
 import {findSpecKeys, getTypes} from '../lib/utils';
 
@@ -47,6 +48,37 @@ export class AppState extends LitService implements StateObservedByUrlService {
       private readonly statusService: StatusService) {
     super();
     makeObservable(this);
+    // Apply the initial theme (stored preference, else system preference),
+    // and follow system changes unless the user has explicitly chosen one.
+    applyTheme(this.theme);
+    watchSystemTheme((theme) => {
+      this.syncSystemTheme(theme);
+    });
+  }
+
+  /** The current light/dark theme. */
+  @observable theme: Theme = getInitialTheme();
+
+  /**
+   * Set the theme, persisting the user's explicit choice.
+   */
+  @action
+  setTheme(theme: Theme) {
+    this.theme = theme;
+    applyTheme(theme, true);
+  }
+
+  /** Flip between light and dark themes. */
+  @action
+  toggleTheme() {
+    this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
+  }
+
+  /** Follow an OS-level theme change; does not persist a user preference. */
+  @action
+  private syncSystemTheme(theme: Theme) {
+    this.theme = theme;
+    applyTheme(theme);
   }
 
   @observable.ref metadata: LitMetadata = {

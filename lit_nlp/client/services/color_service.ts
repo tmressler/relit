@@ -19,7 +19,7 @@
 import * as d3 from 'd3';
 import {computed, makeObservable, observable} from 'mobx';
 
-import {CATEGORICAL_NORMAL, DEFAULT, MULTIHUE_CONTINUOUS, SalienceCmap, SignedSalienceCmap, UnsignedSalienceCmap} from '../lib/colors';
+import {CATEGORICAL_NORMAL, DEFAULT, makeSalienceCmap, MULTIHUE_CONTINUOUS, SalienceCmap, SignedSalienceCmap, UnsignedSalienceCmap} from '../lib/colors';
 import {ColorOption, D3Scale, IndexedInput} from '../lib/types';
 
 import {DataService} from './data_service';
@@ -27,7 +27,7 @@ import {GroupService} from './group_service';
 import {LitService} from './lit_service';
 import {ColorObservedByUrlService, UrlConfiguration} from './url_service';
 
-export {SalienceCmap, SignedSalienceCmap, UnsignedSalienceCmap};
+export {makeSalienceCmap, SalienceCmap, SignedSalienceCmap, UnsignedSalienceCmap};
 
 /**
  * A singleton class that handles all coloring options.

@@ -1,5 +1,5 @@
 .module-toolbar {
-  border-bottom: 1px solid #dadce0;
+  border-bottom: 1px solid var(--lit-outline);
   box-sizing: border-box;
   justify-content: space-between;
 }

@@ -18,7 +18,7 @@ import {LitModule} from '../core/lit_module';
 import {LegendType} from '../elements/color_legend';
 import {NumericInput as LitNumericInput} from '../elements/numeric_input';
 import {TextChips, TokenChips, TokenWithWeight} from '../elements/token_chips';
-import {CONTINUOUS_SIGNED_LAB, CONTINUOUS_UNSIGNED_LAB, SalienceCmap, SignedSalienceCmap, UnsignedSalienceCmap} from '../lib/colors';
+import {makeSalienceCmap, SalienceCmap, SignedSalienceCmap} from '../lib/colors';
 import {GENERATION_TYPES, getAllTargetOptions, TargetOption, TargetSource} from '../lib/generated_text_utils';
 import {LitType, LitTypeTypesList, Tokens, TokenScores} from '../lib/lit_types';
 import {styles as sharedStyles} from '../lib/shared_styles.css';
@@ -454,16 +454,16 @@ export class SequenceSalienceModule extends SingleExampleSingleModelModule {
 
   @computed
   get signedSalienceCmap() {
-    return new SignedSalienceCmap(
-        this.cmapGamma, [-1 * this.cmapDomain, this.cmapDomain],
-        CONTINUOUS_SIGNED_LAB, [0, this.cmapRange]);
+    return makeSalienceCmap(
+        true, this.cmapGamma, this.appState.theme === 'dark',
+        [-1 * this.cmapDomain, this.cmapDomain], [0, this.cmapRange]);
   }
 
   @computed
   get unsignedSalienceCmap() {
-    return new UnsignedSalienceCmap(
-        this.cmapGamma, [0, this.cmapDomain], CONTINUOUS_UNSIGNED_LAB,
-        [0, this.cmapRange]);
+    return makeSalienceCmap(
+        false, this.cmapGamma, this.appState.theme === 'dark',
+        [0, this.cmapDomain], [0, this.cmapRange]);
   }
 
   @computed

@@ -6,7 +6,7 @@
 }
 
 #overlay {
-  background: rgba(4, 29, 51, .47);
+  background: var(--lit-overlay);
   width: 100vw;
   height: 100vh;
   top: 0;
@@ -29,7 +29,7 @@
   width: 33vw;
   padding-bottom: 8px;
   box-sizing: border-box;
-  background-color: white;
+  background-color: var(--lit-surface);
   box-shadow: var(--lit-box-shadow);
   display: flex;
   flex-direction: column;

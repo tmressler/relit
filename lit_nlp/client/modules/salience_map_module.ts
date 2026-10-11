@@ -39,7 +39,7 @@ import {FeatureSalience, FieldMatcher, ImageGradients, ImageSalience, LitTypeTyp
 import {styles as sharedStyles} from '../lib/shared_styles.css';
 import {CallConfig, type IndexedInput, ModelInfoMap, type Preds, SCROLL_SYNC_CSS_CLASS, Spec} from '../lib/types';
 import {argmax, cloneSpec, findSpecKeys, makeModifiedInput} from '../lib/utils';
-import {SalienceCmap, SignedSalienceCmap, UnsignedSalienceCmap} from '../services/color_service';
+import {makeSalienceCmap, SalienceCmap} from '../services/color_service';
 import {FocusService} from '../services/focus_service';
 import {AppState} from '../services/services';
 
@@ -129,11 +129,13 @@ export class SalienceMapModule extends LitModule {
   @observable private cmapGamma = 2.0;
   @computed
   get signedCmap() {
-      return new SignedSalienceCmap(/* gamma */ this.cmapGamma);
+      return makeSalienceCmap(
+          /* signed */ true, this.cmapGamma, this.appState.theme === 'dark');
   }
   @computed
   get unsignedCmap() {
-      return new UnsignedSalienceCmap(/* gamma */ this.cmapGamma);
+      return makeSalienceCmap(
+          /* signed */ false, this.cmapGamma, this.appState.theme === 'dark');
   }
 
   // TODO: We may want the keys to be configurable through the UI at some point,
@@ -493,7 +495,7 @@ export class SalienceMapModule extends LitModule {
           .content=${SalienceMapModule.sliderTooltipText}>
           <label for="gamma-slider" slot="tooltip-anchor">Gamma:</label>
         </lit-tooltip>
-        <lit-numeric-input min="0.25" max="6" step="0.25"
+        <lit-numeric-input min="0.25" max="100" step="0.25"
           value="${this.cmapGamma}" @change=${onChangeGamma}>
         </lit-numeric-input>
       </div>`;
