@@ -20,7 +20,6 @@
 import {autorun, toJS} from 'mobx';
 
 import {Constructor} from '../lib/types';
-import {injectGlobalThemeStyles} from '../lib/theme';
 import {ApiService} from '../services/api_service';
 import {ClassificationService} from '../services/classification_service';
 import {ColorService} from '../services/color_service';
@@ -179,9 +178,6 @@ export class LitApp {
     this.services.set(UrlService, urlService);
   }
 }
-
-// Inject the global (light/dark) theme stylesheet before anything renders.
-injectGlobalThemeStyles();
 
 /** The exported singleton instance of the LIT App */
 export const app = new LitApp();

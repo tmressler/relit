@@ -28,7 +28,7 @@
   margin-bottom: 2px;
   padding-left: 3px;
   padding-right: 3px;
-  border-bottom: 1px solid var(--lit-surface);
+  border-bottom: 1px solid white;
 }
 
 .cluster-label {
@@ -43,8 +43,6 @@
 
 .cluster-active {
   background: var(--group-color);
-  /* Group colors are fixed light viz colors in both themes. */
-  color: #202124;
   border-bottom: 1px solid black; /* underline-like, but cleaner */
 }
 
@@ -53,5 +51,5 @@
 }
 
 .no-data {
-  color: var(--lit-neutral-700);
+  color: #5f6368;
 }

@@ -32,13 +32,13 @@
   top: 0;
   height: var(--table-header-height);
   z-index: 1;
-  background: var(--lit-header-surface);
+  background: #f5fcfc;
 }
 
 .holder table > thead > th {
   font-weight: 500;
-  color: var(--lit-bold-label-color);
-  border-bottom: solid 1px var(--lit-outline);
+  color: #04394b;
+  border-bottom: solid 1px #dadce0;
   position: relative;
 }
 
@@ -148,10 +148,10 @@
 }
 
 .togglable-menu-holder {
-  background-color: var(--lit-surface); /* matches main toolbar holder */
+  background-color: #eff6f8; /* light gray-blue */
   border: 1px solid;
   border-radius: 3px;
-  border-color: var(--lit-outline);
+  border-color: rgb(218, 220, 224);
   position: absolute;
 }
 
@@ -167,7 +167,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: var(--lit-row-highlight-bg);
+  background: var(--lit-mage-200);
 }
 
 :host([selectionenabled]) tbody tr:hover {
@@ -180,21 +180,21 @@ tbody tr.filler:hover {
 }
 
 tbody tr.selected {
-  background: var(--lit-selected-bg);
-  color: var(--lit-selected-fg);
+  background: var(--lit-cyea-100);
+  color: var(--lit-gray-800);
   transition-duration: 0.2s;
   transition-property: background-color;
 }
 
 tbody tr.primary-selected {
-  background: var(--lit-primary-selected-bg);
-  color: var(--lit-primary-selected-fg);
+  background: var(--lit-cyea-300);
+  color: black;
   transition-duration: 0.2s;
   transition-property: background-color;
 }
 
 tbody tr.focused {
-  background: var(--lit-row-highlight-bg);
+  background: var(--lit-mage-200);
   transition-duration: 0.2s;
   transition-property: background-color;
 }
@@ -245,11 +245,11 @@ tbody td {
   bottom: 0;
   height: var(--table-footer-height);
 
-  background: var(--lit-header-surface);
+  background: #f5fcfc;
 }
 
 .footer {
-  color: var(--lit-bold-label-color);
+  color: #04394b;
   font-weight: 400;
   padding: 3px 0;
 

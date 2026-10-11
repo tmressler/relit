@@ -90,7 +90,7 @@ select:invalid {
  * Module controls
  */
 .module-toolbar {
-  border-bottom: 1px solid var(--lit-outline);
+  border-bottom: 1px solid #dadce0;
   box-sizing: border-box;
   justify-content: space-between;
 
@@ -121,7 +121,7 @@ select:invalid {
 }
 
 .controls-group[disabled] {
-  color: var(--lit-neutral-800);
+  color: rgb(60, 64, 67);
   opacity: 0.38;
   pointer-events: none;
 }
@@ -151,7 +151,7 @@ select:invalid {
 }
 
 .vertical-separator {
-  background: var(--lit-outline);
+  background: #dadce0;
   width: 2px;
   height: 1.2rem;
   padding: 0;

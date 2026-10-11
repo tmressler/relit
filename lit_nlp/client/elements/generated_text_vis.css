@@ -12,7 +12,7 @@
   position: sticky;
   top: 0;
 
-  background: var(--lit-header-surface);
+  background: #f5fcfc;
 }
 
 .output-table tr {
@@ -66,15 +66,15 @@
 
 /* use this style instead of .token-chip-label.selected */
 .candidate-selected {
-  border: 1px solid var(--lit-chip-border-selected);
+  border: 1px solid #80868b;
 }
 
 .highlighted-diff {
-  color: var(--lit-diff-color);
+  color: #a93d00;
   font-weight: bold;
 }
 
 .highlighted-match {
-  color: var(--lit-accent-bright);
+  color: #129eaf;
   font-weight: bold;
 }
