@@ -26,7 +26,7 @@
 }
 
 #slice-selector {
-  border: 1px solid var(--lit-outline);
+  border: 1px solid rgb(218, 220, 224);
   flex: 1;
   max-height: calc(100% - 18px);
   overflow-x: hidden;
@@ -38,7 +38,7 @@
 }
 
 .selector-item:hover {
-  background: var(--lit-surface-variant);
+  background: #f8f9fa;
 }
 
 .selector-item > * {
@@ -46,12 +46,11 @@
 }
 
 .selected {
-  background: var(--lit-selected-bg);
-  color: var(--lit-selected-fg);
+  background: rgb(197, 228, 232);
 }
 
 .selected:hover {
-  background: var(--lit-selected-bg);
+  background: rgb(197, 228, 232);
 }
 
 .checkbox-holder{
@@ -79,7 +78,7 @@
 
 .right-action-menu {
   float: right;
-  color: var(--lit-neutral-700);
+  color: #5f6368;
   max-width: var(--slice-selector-right-col-width);
 }
 

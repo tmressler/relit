@@ -13,7 +13,7 @@
 }
 
 .item {
-  background: var(--lit-surface);
+  background: white;
   height: var(--item-height);
   width: 260px;
   padding:var(--item-top-padding) 5px var(--item-bottom-padding) 7px;
@@ -33,25 +33,25 @@
 .check{
   vertical-align: middle;
   padding: 0 6px;
-  color: var(--lit-neutral-700);
+  color: #5F6368;
 }
 
 .item:hover{
-  background: var(--lit-hover-accent-bg);
+  background: #E4F7FB;
 }
 
 .disabled:hover{
-  background: var(--lit-surface);
+  background: white;
 }
 
 .text-disabled{
-  color: var(--lit-neutral-400);
+  color: #aaa;
 }
 
 
 button {
-  background: var(--lit-surface);
-  border: var(--lit-surface);
+  background: white;
+  border: white;
   border-radius: 3px;
   padding: 2px 5px;
   margin-right: 4.5px;
@@ -60,24 +60,24 @@ button {
   font-weight: normal;
   font-size: 14px;
   line-height: 20px;
-  color: var(--lit-neutral-800);
+  color: #3C4043;
 
 }
 
 button:focus {
   outline: none;
-  background: var(--lit-hover-bg);
-  color: var(--lit-accent);
+  background: #F1F3F4;
+  color: #098591;
 }
 
 .button-focus{
   outline: none;
-  background: var(--lit-hover-bg);
-  color: var(--lit-accent);
+  background: #F1F3F4;
+  color: #098591;
 }
 
 button:hover {
-  background: var(--lit-hover-bg);
+  background: #F1F3F4;
 }
 
 /* For in-line icons in a <span> */
@@ -93,11 +93,11 @@ button:hover {
 
 .dropdown-icon {
   font-size: 18px;
-  color: var(--lit-neutral-700);
+  color: #5F6368;
 }
 
 .icon-focus {
-  color: var(--lit-accent);
+  color: #098591;
 }
 
 #menu-holder {

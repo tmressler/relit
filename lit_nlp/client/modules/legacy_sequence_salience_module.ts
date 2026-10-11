@@ -16,7 +16,7 @@ import {computed, makeObservable, observable} from 'mobx';
 import {LitModule} from '../core/lit_module';
 import {LegendType} from '../elements/color_legend';
 import {TokenWithWeight} from '../elements/token_chips';
-import {makeSalienceCmap, SignedSalienceCmap} from '../lib/colors';
+import {SignedSalienceCmap, UnsignedSalienceCmap} from '../lib/colors';
 import {SequenceSalienceMap} from '../lib/dtypes';
 import {canonicalizeGenerationResults, type GeneratedTextResult, GENERATION_TYPES, getAllTargetOptions, TargetOption} from '../lib/generated_text_utils';
 import {Salience} from '../lib/lit_types';
@@ -90,10 +90,13 @@ export class LegacySequenceSalienceModule extends LitModule {
 
   @computed
   get cmap() {
-    const signed = this.selectedSalienceField != null &&
-        (this.salienceSpecInfo[this.selectedSalienceField] as Salience).signed;
-    return makeSalienceCmap(
-        !!signed, this.cmapGamma, this.appState.theme === 'dark');
+    if (this.selectedSalienceField != null &&
+        (this.salienceSpecInfo[this.selectedSalienceField] as Salience)
+            .signed) {
+      return new SignedSalienceCmap(/* gamma */ this.cmapGamma);
+    } else {
+      return new UnsignedSalienceCmap(/* gamma */ this.cmapGamma);
+    }
   }
 
   @computed
@@ -369,7 +372,7 @@ export class LegacySequenceSalienceModule extends LitModule {
       <div class="controls-group">
         ${this.renderColorLegend()}
         <label for="gamma-slider">Gamma:</label>
-        <lit-numeric-input min="0.25" max="100" step="0.25"
+        <lit-numeric-input min="0.25" max="6" step="0.25"
           value="${this.cmapGamma}" @change=${onChangeGamma}>
         </lit-numeric-input>
       </div>`;

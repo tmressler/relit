@@ -1,38 +1,47 @@
-"""GLUE benchmark datasets, from the HuggingFace datasets hub.
+"""GLUE benchmark datasets, using TFDS or from CSV.
 
 See https://gluebenchmark.com/ and
-https://huggingface.co/datasets/glue
+https://www.tensorflow.org/datasets/catalog/glue
 
-The resulting LIT datasets contain regular Python/NumPy data.
+Note that this requires the TensorFlow Datasets package, but the resulting LIT
+datasets just contain regular Python/NumPy data.
 """
 from typing import Optional
 
-from datasets import load_dataset
 from lit_nlp.api import dataset as lit_dataset
 from lit_nlp.api import types as lit_types
 from lit_nlp.lib import file_cache
 from lit_nlp.lib import utils
 import pandas as pd
+import tensorflow_datasets as tfds
 
 
-def load_hf_glue(config_name: str, split: str, **kw):
-  """Load a GLUE config from HuggingFace, preserving original example order."""
-  return list(load_dataset('glue', config_name, split=split, **kw))
+def load_tfds(*args, do_sort=True, **kw):
+  """Load from TFDS, with optional sorting."""
+  # Materialize to NumPy arrays.
+  # This also ensures compatibility with TF1.x non-eager mode, which doesn't
+  # support direct iteration over a tf.data.Dataset.
+  ret = list(tfds.as_numpy(tfds.load(*args, download=True, try_gcs=True, **kw)))
+  if do_sort:
+    # Recover original order, as if you loaded from a TSV file.
+    ret.sort(key=lambda ex: ex['idx'])
+  return ret
 
 
 class CoLAData(lit_dataset.Dataset):
   """Corpus of Linguistic Acceptability.
 
-  See https://huggingface.co/datasets/glue/viewer/cola.
+  See
+  https://www.tensorflow.org/datasets/catalog/glue#gluecola_default_config.
   """
 
   LABELS = ['0', '1']
 
   def __init__(self, split: str):
     self._examples = []
-    for ex in load_hf_glue('cola', split=split):
+    for ex in load_tfds('glue/cola', split=split):
       self._examples.append({
-          'sentence': ex['sentence'],
+          'sentence': ex['sentence'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
 
@@ -46,11 +55,11 @@ class CoLAData(lit_dataset.Dataset):
 class SST2Data(lit_dataset.Dataset):
   """Stanford Sentiment Treebank, binary version (SST-2).
 
-  See https://huggingface.co/datasets/glue/viewer/sst2.
+  See https://www.tensorflow.org/datasets/catalog/glue#gluesst2.
   """
 
   LABELS = ['0', '1']
-  SPLITS = ['test', 'train', 'validation']
+  TFDS_SPLITS = ['test', 'train', 'validation']
 
   def load_from_csv(self, path: str):
     path = file_cache.cached_path(path)
@@ -64,15 +73,15 @@ class SST2Data(lit_dataset.Dataset):
     df['label'] = df.label.map(str)
     return df.to_dict(orient='records')
 
-  def load_from_hf(self, split: str):
-    if split not in self.SPLITS:
+  def load_from_tfds(self, split: str):
+    if split not in self.TFDS_SPLITS:
       raise ValueError(
-          f"Unsupported split '{split}'. Allowed values: {self.SPLITS}"
+          f"Unsupported split '{split}'. Allowed values: {self.TFDS_SPLITS}"
       )
     ret = []
-    for ex in load_hf_glue('sst2', split=split):
+    for ex in load_tfds('glue/sst2', split=split):
       ret.append({
-          'sentence': ex['sentence'],
+          'sentence': ex['sentence'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
     return ret
@@ -83,7 +92,7 @@ class SST2Data(lit_dataset.Dataset):
     if path_or_splitname.endswith('.csv'):
       self._examples = self.load_from_csv(path_or_splitname)[:max_examples]
     else:
-      self._examples = self.load_from_hf(path_or_splitname)[:max_examples]
+      self._examples = self.load_from_tfds(path_or_splitname)[:max_examples]
 
   @classmethod
   def init_spec(cls) -> lit_types.Spec:
@@ -106,7 +115,7 @@ class SST2Data(lit_dataset.Dataset):
 class SST2DataForLM(SST2Data):
   """Stanford Sentiment Treebank, binary version (SST-2).
 
-  See https://huggingface.co/datasets/glue/viewer/sst2.
+  See https://www.tensorflow.org/datasets/catalog/glue#gluesst2.
   This data is reformatted to serve the language models.
   """
 
@@ -137,17 +146,17 @@ class SST2DataForLM(SST2Data):
 class MRPCData(lit_dataset.Dataset):
   """Microsoft Research Paraphrase Corpus.
 
-  See https://huggingface.co/datasets/glue/viewer/mrpc.
+  See https://www.tensorflow.org/datasets/catalog/glue#gluemrpc.
   """
 
   LABELS = ['0', '1']
 
   def __init__(self, split: str):
     self._examples = []
-    for ex in load_hf_glue('mrpc', split=split):
+    for ex in load_tfds('glue/mrpc', split=split):
       self._examples.append({
-          'sentence1': ex['sentence1'],
-          'sentence2': ex['sentence2'],
+          'sentence1': ex['sentence1'].decode('utf-8'),
+          'sentence2': ex['sentence2'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
 
@@ -162,17 +171,17 @@ class MRPCData(lit_dataset.Dataset):
 class QQPData(lit_dataset.Dataset):
   """Quora Question Pairs.
 
-  See https://huggingface.co/datasets/glue/viewer/qqp.
+  See https://www.tensorflow.org/datasets/catalog/glue#glueqqp.
   """
 
   LABELS = ['0', '1']
 
   def __init__(self, split: str):
     self._examples = []
-    for ex in load_hf_glue('qqp', split=split):
+    for ex in load_tfds('glue/qqp', split=split):
       self._examples.append({
-          'question1': ex['question1'],
-          'question2': ex['question2'],
+          'question1': ex['question1'].decode('utf-8'),
+          'question2': ex['question2'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
 
@@ -189,9 +198,9 @@ class STSBData(lit_dataset.Dataset):
 
   Unlike the other GLUE tasks, this is formulated as a regression problem.
 
-  See https://huggingface.co/datasets/glue/viewer/stsb.
+  See https://www.tensorflow.org/datasets/catalog/glue#gluestsb.
   """
-  SPLITS = ['test', 'train', 'validation']
+  TFDS_SPLITS = ['test', 'train', 'validation']
 
   def load_from_csv(self, path: str):
     path = file_cache.cached_path(path)
@@ -205,16 +214,16 @@ class STSBData(lit_dataset.Dataset):
     df['label'] = df.label.map(float)
     return df.to_dict(orient='records')
 
-  def load_from_hf(self, split: str):
-    if split not in self.SPLITS:
+  def load_from_tfds(self, split: str):
+    if split not in self.TFDS_SPLITS:
       raise ValueError(
-          f"Unsupported split '{split}'. Allowed values: {self.SPLITS}"
+          f"Unsupported split '{split}'. Allowed values: {self.TFDS_SPLITS}"
       )
     ret = []
-    for ex in load_hf_glue('stsb', split=split):
+    for ex in load_tfds('glue/stsb', split=split):
       ret.append({
-          'sentence1': ex['sentence1'],
-          'sentence2': ex['sentence2'],
+          'sentence1': ex['sentence1'].decode('utf-8'),
+          'sentence2': ex['sentence2'].decode('utf-8'),
           'label': ex['label'],
       })
     return ret
@@ -225,7 +234,7 @@ class STSBData(lit_dataset.Dataset):
     if path_or_splitname.endswith('.csv'):
       self._examples = self.load_from_csv(path_or_splitname)[:max_examples]
     else:
-      self._examples = self.load_from_hf(path_or_splitname)[:max_examples]
+      self._examples = self.load_from_tfds(path_or_splitname)[:max_examples]
 
   @classmethod
   def init_spec(cls) -> lit_types.Spec:
@@ -249,11 +258,11 @@ class STSBData(lit_dataset.Dataset):
 class MNLIData(lit_dataset.Dataset):
   """MultiNLI dataset.
 
-  See https://huggingface.co/datasets/glue/viewer/mnli.
+  See https://www.tensorflow.org/datasets/catalog/glue#gluemnli.
   """
 
   LABELS = ['entailment', 'neutral', 'contradiction']
-  SPLITS = [
+  TFDS_SPLITS = [
       'test_matched',
       'test_mismatched',
       'train',
@@ -273,16 +282,16 @@ class MNLIData(lit_dataset.Dataset):
     df['label'] = df.label.map(str)
     return df.to_dict(orient='records')
 
-  def load_from_hf(self, split: str):
-    if split not in self.SPLITS:
+  def load_from_tfds(self, split: str):
+    if split not in self.TFDS_SPLITS:
       raise ValueError(
-          f"Unsupported split '{split}'. Allowed values: {self.SPLITS}"
+          f"Unsupported split '{split}'. Allowed values: {self.TFDS_SPLITS}"
       )
     ret = []
-    for ex in load_hf_glue('mnli', split=split):
+    for ex in load_tfds('glue/mnli', split=split):
       ret.append({
-          'premise': ex['premise'],
-          'hypothesis': ex['hypothesis'],
+          'premise': ex['premise'].decode('utf-8'),
+          'hypothesis': ex['hypothesis'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
     return ret
@@ -293,7 +302,7 @@ class MNLIData(lit_dataset.Dataset):
     if path_or_splitname.endswith('.csv'):
       self._examples = self.load_from_csv(path_or_splitname)[:max_examples]
     else:
-      self._examples = self.load_from_hf(path_or_splitname)[:max_examples]
+      self._examples = self.load_from_tfds(path_or_splitname)[:max_examples]
 
   @classmethod
   def init_spec(cls) -> lit_types.Spec:
@@ -317,17 +326,17 @@ class MNLIData(lit_dataset.Dataset):
 class QNLIData(lit_dataset.Dataset):
   """NLI examples derived from SQuAD.
 
-  See https://huggingface.co/datasets/glue/viewer/qnli.
+  See https://www.tensorflow.org/datasets/catalog/glue#glueqnli.
   """
 
   LABELS = ['entailment', 'not_entailment']
 
   def __init__(self, split: str):
     self._examples = []
-    for ex in load_hf_glue('qnli', split=split):
+    for ex in load_tfds('glue/qnli', split=split):
       self._examples.append({
-          'question': ex['question'],
-          'sentence': ex['sentence'],
+          'question': ex['question'].decode('utf-8'),
+          'sentence': ex['sentence'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
 
@@ -342,17 +351,17 @@ class QNLIData(lit_dataset.Dataset):
 class RTEData(lit_dataset.Dataset):
   """Recognizing Textual Entailment.
 
-  See https://huggingface.co/datasets/glue/viewer/rte.
+  See https://www.tensorflow.org/datasets/catalog/glue#gluerte.
   """
 
   LABELS = ['entailment', 'not_entailment']
 
   def __init__(self, split: str):
     self._examples = []
-    for ex in load_hf_glue('rte', split=split):
+    for ex in load_tfds('glue/rte', split=split):
       self._examples.append({
-          'sentence1': ex['sentence1'],
-          'sentence2': ex['sentence2'],
+          'sentence1': ex['sentence1'].decode('utf-8'),
+          'sentence2': ex['sentence2'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
 
@@ -367,17 +376,17 @@ class RTEData(lit_dataset.Dataset):
 class WNLIData(lit_dataset.Dataset):
   """Winograd schema challenge.
 
-  See https://huggingface.co/datasets/glue/viewer/wnli.
+  See https://www.tensorflow.org/datasets/catalog/glue#gluewnli.
   """
 
   LABELS = ['0', '1']
 
   def __init__(self, split: str):
     self._examples = []
-    for ex in load_hf_glue('wnli', split=split):
+    for ex in load_tfds('glue/wnli', split=split):
       self._examples.append({
-          'sentence1': ex['sentence1'],
-          'sentence2': ex['sentence2'],
+          'sentence1': ex['sentence1'].decode('utf-8'),
+          'sentence2': ex['sentence2'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
 
@@ -392,17 +401,17 @@ class WNLIData(lit_dataset.Dataset):
 class DiagnosticNLIData(lit_dataset.Dataset):
   """NLI diagnostic set; use to evaluate models trained on MultiNLI.
 
-  See https://huggingface.co/datasets/glue/viewer/ax.
+  See https://www.tensorflow.org/datasets/catalog/glue#glueax.
   """
 
   LABELS = ['entailment', 'neutral', 'contradiction']
 
   def __init__(self, split: str):
     self._examples = []
-    for ex in load_hf_glue('ax', split=split):
+    for ex in load_tfds('glue/ax', split=split):
       self._examples.append({
-          'premise': ex['premise'],
-          'hypothesis': ex['hypothesis'],
+          'premise': ex['premise'].decode('utf-8'),
+          'hypothesis': ex['hypothesis'].decode('utf-8'),
           'label': self.LABELS[ex['label']],
       })
 
