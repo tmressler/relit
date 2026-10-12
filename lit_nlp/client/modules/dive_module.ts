@@ -28,7 +28,7 @@ import {makeObservable, observable} from 'mobx';
 import {app} from '../core/app';
 import {LitModule} from '../core/lit_module';
 import {LegendType} from '../elements/color_legend';
-import {colorToRGB, getBrandColor} from '../lib/colors';
+import {colorToRGB, ColorValue, getBrandColor, LitBrandPaletteKey} from '../lib/colors';
 import {BooleanLitType, CategoryLabel, Scalar} from '../lib/lit_types';
 import {styles as sharedStyles} from '../lib/shared_styles.css';
 import {GroupedExamples, IndexedInput, ModelInfoMap, Spec} from '../lib/types';
@@ -37,10 +37,7 @@ import {FacetingConfig, FacetingMethod} from '../services/group_service';
 import {ColorService, DataService, FocusService, GroupService, SelectionService} from '../services/services';
 
 const CELL_PADDING = 8;
-const COLOR_TEXT = colorToRGB('black');
-const COLOR_PRIMARY_BORDER = colorToRGB(getBrandColor('cyea', '700').color);
 const COLOR_HOVER_FILL = colorToRGB(getBrandColor('mage', '400').color);
-const COLOR_PINNED_BORDER = colorToRGB(getBrandColor('mage', '700').color);
 const COLOR_NONE = [0, 0, 0, 0];
 const HEURISTIC_SCALE_FACTOR = 0.7;
 const TEXT_SIZE = 14;
@@ -103,13 +100,6 @@ interface DiveSelections {
   rowLabels?: TextSelection<Label>;
   /** The datapoints in the dataset. */
   points?: Selection<Dot>;
-}
-
-function bindLabel(sprite: SpriteView, label: Label) {
-  sprite.FillColor = COLOR_TEXT;
-  sprite.SizePixel = TEXT_SIZE;
-  sprite.PositionWorld = label.world;
-  sprite.PositionPixel = label.pixel;
 }
 
 function keySorter(a: string, b: string): number {
@@ -241,6 +231,27 @@ export class DiveModule extends LitModule {
     makeObservable(this);
   }
 
+  private getLabelColor() {
+    const computedStyle = getComputedStyle(document.documentElement);
+    const color =
+        computedStyle.getPropertyValue('--lit-on-surface').trim() || '#202124';
+    return colorToRGB(color);
+  }
+
+  private getBrandColorForTheme(
+      palette: LitBrandPaletteKey, lightShade: ColorValue,
+      darkShade: ColorValue) {
+    const shade = this.appState.theme === 'dark' ? darkShade : lightShade;
+    return colorToRGB(getBrandColor(palette, shade).color);
+  }
+
+  private readonly bindLabel = (sprite: SpriteView, label: Label) => {
+    sprite.FillColor = this.getLabelColor();
+    sprite.SizePixel = TEXT_SIZE;
+    sprite.PositionWorld = label.world;
+    sprite.PositionPixel = label.pixel;
+  };
+
   /**
    * Configures the Megaplot Selections for each facet in `this.groupedExamples`
    * using the grouped facets method, which produces a 2D matrix of dot groups,
@@ -264,6 +275,9 @@ export class DiveModule extends LitModule {
     const rowFeature = this.groupService.denseFeatureNames[this.rowsFeatureIdx];
     if (colFeature == null || rowFeature == null) return;
 
+    const pinnedBorderColor = this.getBrandColorForTheme('mage', '700', '300');
+    const primaryBorderColor = this.getBrandColorForTheme('cyea', '700', '300');
+
     const bindDot = (sprite: SpriteView, dot: Dot) => {
       const isHovered =
           this.focusService.focusData?.datapointId === dot.id;
@@ -281,8 +295,8 @@ export class DiveModule extends LitModule {
       const colorString = this.colorService.getDatapointColor(input);
       const color = colorToRGB(colorString);
 
-      sprite.BorderColor = isPinned  ? COLOR_PINNED_BORDER :
-                           isPrimary ? COLOR_PRIMARY_BORDER : color;
+      sprite.BorderColor = isPinned  ? pinnedBorderColor :
+                           isPrimary ? primaryBorderColor : color;
       sprite.BorderColorOpacity = isSpecial ? 1 : 0.25;
       sprite.BorderRadiusPixel = (isPinned || isPrimary) ? 2 : 0;
       sprite.BorderPlacement = 1;
@@ -709,12 +723,14 @@ export class DiveModule extends LitModule {
     this.selections.columnLabels = this.scene.createTextSelection<Label>();
     this.selections.columnLabels.align(() => 'center')
         .verticalAlign(() => 'bottom').text((label: Label) => label.text)
-        .onInit(bindLabel).onUpdate(bindLabel).onExit(spriteExitHandler);
+        .onInit(this.bindLabel).onUpdate(this.bindLabel)
+        .onExit(spriteExitHandler);
 
     this.selections.rowLabels = this.scene.createTextSelection<Label>();
     this.selections.rowLabels.align(() => 'right')
         .verticalAlign(() => 'middle').text((label: Label) => label.text)
-        .onInit(bindLabel).onUpdate(bindLabel).onExit(spriteExitHandler);
+        .onInit(this.bindLabel).onUpdate(this.bindLabel)
+        .onExit(spriteExitHandler);
 
     this.selections.points = this.scene.createSelection<Dot>();
     this.selections.points.onExit(spriteExitHandler);
@@ -750,6 +766,14 @@ export class DiveModule extends LitModule {
         this.pinnedSelectionService.primarySelectedId,
         this.focusService.focusData?.datapointId];
     this.reactImmediately(selectionChanges, () => {this.draw();});
+
+    // Megaplot renders to a WebGL canvas, which cannot resolve the CSS custom
+    // properties that flip on theme change, so re-apply the theme-dependent
+    // label and selection colors whenever the theme changes.
+    this.react(() => this.appState.theme, () => {
+      this.configure();
+      this.draw();
+    });
   }
 }
 
