@@ -548,6 +548,9 @@ class GlueModel(lit_model.BatchedModel):
         self.model.get_input_embeddings().weight.detach().cpu().numpy(),
     )
 
+  def detokenize(self, tokens: Sequence[str]) -> str:
+    return self.tokenizer.convert_tokens_to_string(list(tokens))
+
   def predict_minibatch(self, inputs: Iterable[JsonDict]):
     encoded_input = self._preprocess(inputs)
 

@@ -70,11 +70,29 @@ def sample_masks(num_samples: int,
 
 def get_perturbations(tokens: Sequence[str],
                       masks: np.ndarray,
-                      mask_token: str = '<unk>') -> Iterable[str]:
-  """Returns strings with the masked tokens replaced with `mask_token`."""
+                      mask_token: str = '<unk>',
+                      join_fn: Optional[Callable[[Sequence[str]], str]] = None,
+                      ) -> Iterable[str]:
+  """Returns strings with the masked tokens replaced with `mask_token`.
+
+  Args:
+    tokens: The tokens to be perturbed.
+    masks: Masks <bool>[num_samples, num_tokens] indicating which tokens are
+      enabled (True) and which ones are replaced with `mask_token` (False).
+    mask_token: The token used to replace disabled tokens.
+    join_fn: Optional function to join the (masked) tokens back into a string.
+      Defaults to joining tokens with spaces. A model-provided detokenizer can
+      be passed in here to better preserve the original text, e.g., for
+      subword tokenizations.
+
+  Yields:
+    The perturbed strings, one per mask.
+  """
+  if join_fn is None:
+    join_fn = ' '.join
   for mask in masks:
     parts = [t if mask[i] else mask_token for i, t in enumerate(tokens)]
-    yield ' '.join(parts)
+    yield join_fn(parts)
 
 
 def explain(
@@ -84,6 +102,7 @@ def explain(
     num_samples: int = DEFAULT_NUM_SAMPLES,
     tokenizer: Any = str.split,
     mask_token: str = DEFAULT_MASK_TOKEN,
+    join_fn: Optional[Callable[[Sequence[str]], str]] = None,
     alpha: float = 1.0,
     solver: str = DEFAULT_SOLVER,
     kernel: Callable[..., np.ndarray] = utils.exponential_kernel,
@@ -117,6 +136,10 @@ def explain(
     num_samples: The number of n-grams to sample.
     tokenizer: A function that splits the input sentence into tokens.
     mask_token: The token that is used for masking tokens, e.g., '<unk>'.
+    join_fn: Optional function to join tokens back into strings for the
+      perturbation set. Defaults to joining tokens with spaces. Can be set to
+      a model-provided detokenizer to better preserve the original text when
+      tokens are subword units.
     alpha: Regularization strength of the linear approximation model. See
       `sklearn.linear_model.Ridge` for details.
     solver: Solver to use in the linear approximation model. See
@@ -148,7 +171,8 @@ def explain(
   all_true_mask = np.ones_like(masks[0], dtype=bool)
   masks[0] = all_true_mask  # First mask is the full sentence.
 
-  perturbations = list(get_perturbations(tokens, masks, mask_token))
+  perturbations = list(
+      get_perturbations(tokens, masks, mask_token, join_fn=join_fn))
   outputs = predict_fn(perturbations)
 
   if len(outputs.shape) > 1:

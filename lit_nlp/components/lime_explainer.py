@@ -14,7 +14,7 @@
 # ==============================================================================
 """LIME perturbation-based feature attribution for text sequences."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 import functools
 from typing import Any, Optional
 
@@ -43,6 +43,9 @@ KERNEL_WIDTH_KEY = 'Kernel width'
 MASK_KEY = 'Mask'
 NUM_SAMPLES_KEY = 'Number of samples'
 SEED_KEY = 'Seed'
+TOKENIZATION_KEY = 'Tokenization'
+WHITESPACE_TOKENIZATION = 'Whitespace'
+MODEL_TOKENIZATION = 'Model tokens'
 
 
 def _predict_fn(strings: Iterable[str], model: Any, original_example: JsonDict,
@@ -98,6 +101,87 @@ def _predict_fn(strings: Iterable[str], model: Any, original_example: JsonDict,
   return outputs
 
 
+def get_detokenizer(
+    model: Any,
+) -> Optional[Callable[[Sequence[str]], str]]:
+  """Find a model-provided detokenization function, if available.
+
+  Prefers an explicit `detokenize()` method on the model, and falls back to
+  `convert_tokens_to_string()` on a HuggingFace-style tokenizer exposed as a
+  `tokenizer` attribute. Candidates that raise NotImplementedError (such as
+  the default `Model.detokenize()` stub) are skipped.
+
+  Args:
+    model: The model to search for a detokenizer.
+
+  Returns:
+    A function that takes a list of token strings and returns the
+    corresponding text, or None if the model provides no detokenizer, in which
+    case callers should fall back to joining tokens with spaces.
+  """
+  candidates = []
+  models = [model]
+  # Also check wrapped models, for models that use the ModelWrapper pattern.
+  if (wrapped := getattr(model, 'wrapped', None)) is not None:
+    models.append(wrapped)
+  for mdl in models:
+    detokenize = getattr(mdl, 'detokenize', None)
+    if callable(detokenize):
+      candidates.append(detokenize)
+    tokenizer = getattr(mdl, 'tokenizer', None)
+    convert_tokens_to_string = getattr(tokenizer, 'convert_tokens_to_string',
+                                       None)
+    if callable(convert_tokens_to_string):
+      candidates.append(convert_tokens_to_string)
+
+  for candidate in candidates:
+    try:
+      candidate([])  # Probe for availability.
+      return candidate
+    except NotImplementedError:
+      continue
+  return None
+
+
+def find_tokens_fields(model: lit_model.Model,
+                       text_keys: Sequence[str]) -> dict[str, str]:
+  """Map text field keys to the model output field holding their tokens.
+
+  A `Tokens` output field is matched to a text field if its spec's `parent`
+  attribute refers to that field. If no `parent` attributes are set and there
+  is exactly one `Tokens` field and one text field, they are matched by
+  default.
+
+  Args:
+    model: The model to search.
+    text_keys: The text input fields to find tokens for.
+
+  Returns:
+    A dict mapping text field key -> Tokens output field key, for the text
+    fields that have a match.
+  """
+  output_spec = model.output_spec()
+  tokens_keys = utils.find_spec_keys(output_spec, types.Tokens)
+  tokens_field_for_text = {}
+  for text_key in text_keys:
+    for tokens_key in tokens_keys:
+      if output_spec[tokens_key].parent == text_key:
+        tokens_field_for_text[text_key] = tokens_key
+        break
+  if not tokens_field_for_text and len(tokens_keys) == 1 and len(
+      text_keys) == 1:
+    # No parent info available; match the single tokens field to the single
+    # text field.
+    tokens_field_for_text[text_keys[0]] = tokens_keys[0]
+  return tokens_field_for_text
+
+
+def _fixed_tokenizer(tokens: Sequence[str], sentence: str) -> list[str]:
+  """Tokenizer for `lime.explain` that returns precomputed tokens."""
+  del sentence  # Unused; tokens are provided externally.
+  return list(tokens)
+
+
 def get_class_to_explain(
     model: Any,
     pred_key: str,
@@ -140,7 +224,16 @@ def get_class_to_explain(
 
 
 class LIME(lit_components.Interpreter):
-  """Local Interpretable Model-agnostic Explanations (LIME)."""
+  """Local Interpretable Model-agnostic Explanations (LIME).
+
+  Explains predictions by masking input features and fitting a linear model.
+  The perturbation unit ("Tokenization") can be whitespace-delimited words or
+  the model's own tokens. When model tokens are used, the model can optionally
+  provide a detokenizer (a `detokenize()` method, or a HuggingFace-style
+  `tokenizer` attribute with `convert_tokens_to_string`) so that masked token
+  sequences are turned back into strings faithfully; otherwise tokens are
+  joined with spaces, which can be inaccurate for subword tokenizers.
+  """
 
   def __init__(
       self,
@@ -183,6 +276,8 @@ class LIME(lit_components.Interpreter):
     # pylint: disable=g-explicit-bool-comparison
     seed = int(config[SEED_KEY]) if config[SEED_KEY] != '' else None
     # pylint: enable=g-explicit-bool-comparison
+    tokenization_mode = config.get(TOKENIZATION_KEY, WHITESPACE_TOKENIZATION)
+    use_model_tokens = tokenization_mode == MODEL_TOKENIZATION
 
     # Find keys of input (text) segments to explain.
     # Search in the input spec, since it's only useful to look at ones that are
@@ -218,10 +313,32 @@ class LIME(lit_components.Interpreter):
       provided_class_to_explain = None  # use model prediction
 
     pred_type_info = model.output_spec()[pred_key]
+
+    # Resolve model tokenization settings, if requested.
+    detokenizer = None
+    tokens_field_for_text = {}
+    if use_model_tokens:
+      tokens_field_for_text = find_tokens_fields(model, text_keys)
+      if not tokens_field_for_text:
+        logging.warning(
+            'LIME: model tokens requested but model has no Tokens output '
+            'fields; falling back to whitespace tokenization.')
+      else:
+        detokenizer = get_detokenizer(model)
+        if detokenizer is None:
+          logging.info(
+              'LIME: no model-provided detokenizer found; perturbed token '
+              'sequences will be joined with spaces.')
+        missing = [k for k in text_keys if k not in tokens_field_for_text]
+        if missing:
+          logging.warning(
+              'LIME: no Tokens output field for text fields %s; these will '
+              'use whitespace tokenization.', missing)
+
     all_results = []
 
     # Explain each input.
-    for example in inputs:
+    for i, example in enumerate(inputs):
       # dict[field name -> interpretations]
       result = {}
       predict_fn = functools.partial(
@@ -236,10 +353,31 @@ class LIME(lit_components.Interpreter):
           model, pred_key, example, provided_class_to_explain
       )
 
+      # Get model outputs (including tokenization) for this example, if needed.
+      example_outputs = None
+      if use_model_tokens and tokens_field_for_text:
+        if model_outputs is not None:
+          example_outputs = model_outputs[i]
+        else:
+          example_outputs = list(model.predict([example]))[0]
+
       # Explain each text segment in the input, keeping the others constant.
       for text_key in text_keys:
         input_string = example[text_key]
         logging.info('Explaining: %s', input_string)
+
+        tokenizer = str.split
+        join_fn = None
+        tokens_field = tokens_field_for_text.get(text_key)
+        if use_model_tokens and tokens_field is not None:
+          tokens = list(example_outputs[tokens_field])
+          if tokens:
+            tokenizer = functools.partial(_fixed_tokenizer, tokens)
+            join_fn = detokenizer
+          else:
+            logging.warning(
+                'LIME: empty tokens found in %s for field %r; falling back '
+                'to whitespace tokenization.', tokens_field, text_key)
 
         # Perturbs the input string, gets model predictions, fits linear model.
         explanation = lime.explain(
@@ -248,8 +386,9 @@ class LIME(lit_components.Interpreter):
             # `class_to_explain` is ignored when predict_fn output is a scalar.
             class_to_explain=class_to_explain,
             num_samples=num_samples,
-            tokenizer=str.split,
+            tokenizer=tokenizer,
             mask_token=mask_string,
+            join_fn=join_fn,
             kernel=functools.partial(
                 lime.exponential_kernel, kernel_width=kernel_width),
             seed=seed)
@@ -275,6 +414,11 @@ class LIME(lit_components.Interpreter):
         ),
         # TODO(b/205996131): remove CLASS_KEY field
         CLASS_KEY: types.TextSegment(default='-1', required=False),
+        TOKENIZATION_KEY: types.CategoryLabel(
+            required=False,
+            vocab=[WHITESPACE_TOKENIZATION, MODEL_TOKENIZATION],
+            default=WHITESPACE_TOKENIZATION,
+        ),
         MASK_KEY: types.TextSegment(default=self._mask_token, required=False),
         KERNEL_WIDTH_KEY: types.TextSegment(
             default=self._kernel_width, required=False

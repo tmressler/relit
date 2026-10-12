@@ -14,7 +14,7 @@
 # ==============================================================================
 """Base classes for LIT models."""
 import abc
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 import inspect
 import itertools
 import multiprocessing.pool  # for ThreadPool
@@ -197,6 +197,25 @@ class Model(metaclass=abc.ABCMeta):
     raise NotImplementedError('get_embedding_table() not implemented for ' +
                               self.__class__.__name__)
 
+  def detokenize(self, tokens: Sequence[str]) -> str:
+    """Return the text representation of a list of model tokens.
+
+    Implementing this is optional, but can improve the accuracy of
+    interpreters such as LIME which need to convert perturbed sequences of
+    model tokens back into strings that can be re-tokenized by the model.
+    Implementations should be the inverse of the model's tokenizer for
+    well-formed token sequences, for example by calling
+    `tokenizer.convert_tokens_to_string()` for HuggingFace tokenizers.
+
+    Args:
+      tokens: A list of token strings, as produced by the model's tokenizer.
+
+    Returns:
+      (str) The detokenized text.
+    """
+    raise NotImplementedError('detokenize() not implemented for ' +
+                              self.__class__.__name__)
+
   @abc.abstractmethod
   def predict(self, inputs: Iterable[JsonDict], **kw) -> Iterable[JsonDict]:
     """Run prediction on a list of inputs and return the outputs."""
@@ -249,6 +268,9 @@ class ModelWrapper(Model):
   # Special methods
   def get_embedding_table(self) -> tuple[list[str], np.ndarray]:
     return self.wrapped.get_embedding_table()
+
+  def detokenize(self, tokens: Sequence[str]) -> str:
+    return self.wrapped.detokenize(tokens)
 
 
 class BatchedModel(Model):

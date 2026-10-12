@@ -52,6 +52,48 @@ class LimeTest(parameterized.TestCase):
     expected = 'It is _ _ movie but _ _ _ .'
     self.assertEqual(expected, perturbations[0])
 
+  def test_get_perturbations_uses_join_fn(self):
+    """Tests that a custom join function is used to build perturbations."""
+    tokens = ['It', 'is', 'play', '##ing']
+    masks = np.array([[True, True, False, True]])
+
+    def _wordpiece_join(parts):
+      return ' '.join(parts).replace(' ##', '')
+
+    perturbations = list(
+        lime.get_perturbations(
+            tokens, masks, mask_token='_', join_fn=_wordpiece_join))
+    self.assertEqual('It is _ing', perturbations[0])
+
+  def test_explain_uses_join_fn(self):
+    """Tests that explain passes join_fn through to the perturbation set."""
+    seen_sentences = []
+
+    def _predict_fn(sentences):
+      seen_sentences.extend(sentences)
+      return np.zeros(len(seen_sentences))
+
+    def _wordpiece_join(parts):
+      return ' '.join(parts).replace(' ##', '')
+
+    tokens = ['It', 'is', 'play', '##ing']
+    explanation = lime.explain(
+        'It is playing',
+        _predict_fn,
+        num_samples=5,
+        tokenizer=lambda _: list(tokens),
+        mask_token='_',
+        join_fn=_wordpiece_join,
+        seed=0)
+
+    self.assertEqual(tokens, list(explanation.features))
+    # The first perturbation is the full (unmasked) sentence, which should be
+    # detokenized with the provided join function rather than space-joined.
+    self.assertEqual('It is playing', seen_sentences[0])
+    # All perturbations should use the custom join function.
+    for sentence in seen_sentences:
+      self.assertNotIn(' ##', sentence)
+
   @parameterized.named_parameters(
       {
           'testcase_name': 'is_one_for_zero_distance',
