@@ -227,12 +227,13 @@ class LIME(lit_components.Interpreter):
   """Local Interpretable Model-agnostic Explanations (LIME).
 
   Explains predictions by masking input features and fitting a linear model.
-  The perturbation unit ("Tokenization") can be whitespace-delimited words or
-  the model's own tokens. When model tokens are used, the model can optionally
-  provide a detokenizer (a `detokenize()` method, or a HuggingFace-style
-  `tokenizer` attribute with `convert_tokens_to_string`) so that masked token
-  sequences are turned back into strings faithfully; otherwise tokens are
-  joined with spaces, which can be inaccurate for subword tokenizers.
+  The perturbation unit ("Tokenization") can be the model's own tokens (the
+  default, when the model provides a Tokens output) or whitespace-delimited
+  words. When model tokens are used, the model can optionally provide a
+  detokenizer (a `detokenize()` method, or a HuggingFace-style `tokenizer`
+  attribute with `convert_tokens_to_string`) so that masked token sequences
+  are turned back into strings faithfully; otherwise tokens are joined with
+  spaces, which can be inaccurate for subword tokenizers.
   """
 
   def __init__(
@@ -267,8 +268,9 @@ class LIME(lit_components.Interpreter):
       config: Optional[JsonDict] = None,
   ) -> Optional[list[JsonDict]]:
     """Run this component, given a model and input(s)."""
+    raw_config = config or {}
     config_defaults = {k: v.default for k, v in self.config_spec().items()}
-    config = dict(config_defaults, **(config or {}))  # update and return
+    config = dict(config_defaults, **raw_config)  # update and return
 
     kernel_width = int(config[KERNEL_WIDTH_KEY])
     num_samples = int(config[NUM_SAMPLES_KEY])
@@ -276,8 +278,14 @@ class LIME(lit_components.Interpreter):
     # pylint: disable=g-explicit-bool-comparison
     seed = int(config[SEED_KEY]) if config[SEED_KEY] != '' else None
     # pylint: enable=g-explicit-bool-comparison
-    tokenization_mode = config.get(TOKENIZATION_KEY, WHITESPACE_TOKENIZATION)
+    tokenization_mode = config[TOKENIZATION_KEY]
     use_model_tokens = tokenization_mode == MODEL_TOKENIZATION
+    # Model tokens are the default; only warn on fallback when the user
+    # explicitly requested them.
+    explicit_model_tokens = (
+        raw_config.get(TOKENIZATION_KEY) == MODEL_TOKENIZATION
+    )
+    fallback_log = logging.warning if explicit_model_tokens else logging.info
 
     # Find keys of input (text) segments to explain.
     # Search in the input spec, since it's only useful to look at ones that are
@@ -320,7 +328,7 @@ class LIME(lit_components.Interpreter):
     if use_model_tokens:
       tokens_field_for_text = find_tokens_fields(model, text_keys)
       if not tokens_field_for_text:
-        logging.warning(
+        fallback_log(
             'LIME: model tokens requested but model has no Tokens output '
             'fields; falling back to whitespace tokenization.')
       else:
@@ -331,7 +339,7 @@ class LIME(lit_components.Interpreter):
               'sequences will be joined with spaces.')
         missing = [k for k in text_keys if k not in tokens_field_for_text]
         if missing:
-          logging.warning(
+          fallback_log(
               'LIME: no Tokens output field for text fields %s; these will '
               'use whitespace tokenization.', missing)
 
@@ -375,7 +383,7 @@ class LIME(lit_components.Interpreter):
             tokenizer = functools.partial(_fixed_tokenizer, tokens)
             join_fn = detokenizer
           else:
-            logging.warning(
+            fallback_log(
                 'LIME: empty tokens found in %s for field %r; falling back '
                 'to whitespace tokenization.', tokens_field, text_key)
 
@@ -416,8 +424,8 @@ class LIME(lit_components.Interpreter):
         CLASS_KEY: types.TextSegment(default='-1', required=False),
         TOKENIZATION_KEY: types.CategoryLabel(
             required=False,
-            vocab=[WHITESPACE_TOKENIZATION, MODEL_TOKENIZATION],
-            default=WHITESPACE_TOKENIZATION,
+            vocab=[MODEL_TOKENIZATION, WHITESPACE_TOKENIZATION],
+            default=MODEL_TOKENIZATION,
         ),
         MASK_KEY: types.TextSegment(default=self._mask_token, required=False),
         KERNEL_WIDTH_KEY: types.TextSegment(

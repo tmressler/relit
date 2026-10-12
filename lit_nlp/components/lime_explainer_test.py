@@ -122,9 +122,30 @@ class LimeExplainerTest(parameterized.TestCase):
   def test_tokenization_config_default(self):
     lime = lime_explainer.LIME()
     spec = lime.config_spec()[TOKENIZATION_KEY]
-    self.assertEqual([WHITESPACE_TOKENIZATION, MODEL_TOKENIZATION],
+    self.assertEqual([MODEL_TOKENIZATION, WHITESPACE_TOKENIZATION],
                      list(spec.vocab))
-    self.assertEqual(WHITESPACE_TOKENIZATION, spec.default)
+    self.assertEqual(MODEL_TOKENIZATION, spec.default)
+
+  def test_run_default_uses_model_tokens_when_available(self):
+    # No tokenization setting provided: model tokens are the default when the
+    # model exposes a Tokens field.
+    model = _KeywordModel()
+    lime = lime_explainer.LIME()
+    result = lime.run(
+        [{'sentence': 'it is playing'}], model, None,
+        config=_base_config())[0]
+    self.assertEqual(['it', 'is', 'play', '##ing'],
+                     list(result['sentence'].tokens))
+
+  def test_run_default_falls_back_to_whitespace(self):
+    # No tokenization setting provided and no Tokens field in the model:
+    # falls back to whitespace tokenization.
+    model = _KeywordModel(output_tokens=False)
+    lime = lime_explainer.LIME()
+    result = lime.run(
+        [{'sentence': 'it is playing'}], model, None,
+        config=_base_config())[0]
+    self.assertEqual(['it', 'is', 'playing'], list(result['sentence'].tokens))
 
   def test_run_whitespace_mode(self):
     model = _KeywordModel()

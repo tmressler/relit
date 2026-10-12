@@ -35,7 +35,7 @@ import {LitModule} from '../core/lit_module';
 import {LegendType} from '../elements/color_legend';
 import {InterpreterClick} from '../elements/interpreter_controls';
 import {TokenWithWeight} from '../elements/token_chips';
-import {FeatureSalience, FieldMatcher, ImageGradients, ImageSalience, LitTypeTypesList, LitTypeWithParent, MulticlassPreds, RegressionScore, Salience, SalienceTargetInfo, TokenGradients, TokenSalience, FrameSalience} from '../lib/lit_types';
+import {CategoryLabel, FeatureSalience, FieldMatcher, ImageGradients, ImageSalience, LitTypeTypesList, LitTypeWithParent, MulticlassPreds, RegressionScore, Salience, SalienceTargetInfo, TokenGradients, TokenSalience, FrameSalience, Tokens} from '../lib/lit_types';
 import {styles as sharedStyles} from '../lib/shared_styles.css';
 import {CallConfig, type IndexedInput, ModelInfoMap, type Preds, SCROLL_SYNC_CSS_CLASS, Spec} from '../lib/types';
 import {argmax, cloneSpec, findSpecKeys, makeModifiedInput} from '../lib/utils';
@@ -72,6 +72,12 @@ export type SalienceResult = TokenSalienceResult | ImageSalienceResult |
                       FeatureSalienceResult;
 
 const SUPPORTED_SALIENCE_TYPES = [TokenSalience, FeatureSalience, ImageSalience, FrameSalience];
+
+/**
+ * 'Model tokens' option in the LIME 'Tokenization' setting; see
+ * lit_nlp/components/lime_explainer.py.
+ */
+const LIME_MODEL_TOKENIZATION = 'Model tokens';
 
 const TARGET_SELECTOR_SUPPORTED_TYPES: LitTypeTypesList =
     [MulticlassPreds, RegressionScore];
@@ -621,6 +627,17 @@ export class SalienceMapModule extends LitModule {
       if (fieldSpec instanceof FieldMatcher) {
         fieldSpec.vocab =
             this.appState.getSpecKeysFromFieldMatcher(fieldSpec, this.model);
+      }
+
+      // Hide the 'Model tokens' tokenization option for models that have no
+      // Tokens output; LIME would always fall back to whitespace there.
+      if (fieldSpec instanceof CategoryLabel &&
+          fieldSpec.vocab?.includes(LIME_MODEL_TOKENIZATION)) {
+        const {output} = this.appState.getModelSpec(this.model);
+        if (findSpecKeys(output, [Tokens]).length === 0) {
+          fieldSpec.vocab = fieldSpec.vocab.filter(
+              option => option !== LIME_MODEL_TOKENIZATION);
+        }
       }
     }
 
