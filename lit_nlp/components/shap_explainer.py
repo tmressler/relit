@@ -30,6 +30,7 @@ import shap
 JsonDict = types.JsonDict
 Spec = types.Spec
 
+TARGET_INFO_KEY = '_salience_target'
 EXPLAIN_KEY = 'Prediction key'
 SAMPLE_KEY = 'Sample size'
 
@@ -44,11 +45,19 @@ class TabularShapExplainer(lit_components.Interpreter):
   Kernel SHAP is used to determine the influence that each input features has
   on the prediction of an output feature, given a dataset and model.
 
+  The output to explain is taken from the "_salience_target" config (the
+  "Output field to explain" and "Class to explain" selectors in the Salience
+  Maps module), falling back to the "Prediction key" config value. For
+  classification outputs, the SHAP values are computed for the full vector of
+  class scores and the selected class is returned; if no class is selected, the
+  model's argmax prediction is explained per example.
+
   This explainer takes two inputs in its call configuration:
 
-  1.  [Required] The "Prediction key" tells the interpreter which feature in
-      the output spec to explain. This interpreter returns None if a
-      "Prediction key" is not provided.
+  1.  [Optional] The "Prediction key" tells the interpreter which feature in
+      the output spec to explain. If not provided, the salience target's output
+      field is used, falling back to the first supported field in the model's
+      output spec.
 
   2.  [Optional] "Sample size" is used to extract a random sample from the
       inputs provided to the run() function. If "Sample size" is 0, run() will
@@ -65,8 +74,9 @@ class TabularShapExplainer(lit_components.Interpreter):
   def description(self) -> str:
     return (
         'Kernel SHAP explanations of input feature influence on model '
-        'predictions over tabular data. Influence values are normalized in '
-        'the range of [-1, 1].'
+        'predictions over tabular data. For classification, explains the '
+        'selected class (or the argmax prediction by default). Influence '
+        'values are normalized in the range of [-1, 1].'
     )
 
   def is_compatible(
@@ -93,6 +103,7 @@ class TabularShapExplainer(lit_components.Interpreter):
 
   def config_spec(self) -> types.Spec:
     return {
+        TARGET_INFO_KEY: types.SalienceTargetInfo(),
         EXPLAIN_KEY: types.SingleFieldMatcher(
             spec='output',
             types=[
@@ -101,8 +112,11 @@ class TabularShapExplainer(lit_components.Interpreter):
                 'Scalar',
                 'SparseMultilabelPreds',
             ],
+            required=False,
         ),
-        SAMPLE_KEY: types.Scalar(min_val=0, max_val=50, default=30, step=1),
+        SAMPLE_KEY: types.Scalar(
+            min_val=0, max_val=50, default=30, step=1, required=False
+        ),
     }
 
   def meta_spec(self) -> types.Spec:
@@ -124,8 +138,10 @@ class TabularShapExplainer(lit_components.Interpreter):
       model: The model making the predictions that get explained.
       dataset: The dataset from which the inputs originated.
       model_outputs: Unused, but reqired by the base class.
-      config: A dictionary containing the key of the feature to explain, and the
-        optional sample size if taking a random sample from the inputs.
+      config: A dictionary containing the salience target (output field and
+        optional class index to explain) and/or the key of the feature to
+        explain, and the optional sample size if taking a random sample from
+        the inputs.
 
     Returns:
       A list of FeatureSalience objects, one for each (randomly sampled) input,
@@ -140,13 +156,21 @@ class TabularShapExplainer(lit_components.Interpreter):
     config_defaults = {k: v.default for k, v in self.config_spec().items()}
     config = dict(config_defaults, **(config or {}))
 
+    # The salience target (output field and class to explain) is set by the
+    # Salience Maps module; fall back to the prediction key config value.
+    target_config = config.get(TARGET_INFO_KEY) or {}
     default_pred_key = utils.find_spec_keys(
         model.output_spec(), _SUPPORTED_OUTPUT_TYPES)[0]
-    pred_key = config.get(EXPLAIN_KEY) or default_pred_key
+    pred_key = (target_config.get('field') or config.get(EXPLAIN_KEY) or
+                default_pred_key)
     pred_spec = model.output_spec().get(pred_key)
     if not pred_spec:
       raise ValueError('SHAP requires a prediction field to explain. Could not '
                        f'find {pred_key} in spec, {str(model.output_spec())}.')
+
+    class_to_explain = target_config.get('index')
+    if class_to_explain is not None and int(class_to_explain) < 0:
+      class_to_explain = None  # -1 means explain the argmax prediction.
 
     input_feats = [key for key in model.input_spec() if key in dataset.spec()]
 
@@ -166,29 +190,51 @@ class TabularShapExplainer(lit_components.Interpreter):
           dict(zip(input_feats, feature_values)) for feature_values in examples
       ]
 
-      preds: list[Union[int, float]] = []
+      preds: list[Union[float, list[float]]] = []
 
       for pred in model.predict(dict_examples):
         if isinstance(pred_spec, types.MulticlassPreds):
-          pred_list: list[float] = list(pred[pred_key])
-          max_value: float = max(pred_list)
-          index: int = pred_list.index(max_value)
-          preds.append(index)
+          # Return the full vector of class scores so that SHAP explains
+          # individual classes, rather than the (nominal) predicted class
+          # index.
+          preds.append([float(score) for score in pred[pred_key]])
         elif isinstance(pred_spec, types.SparseMultilabelPreds):
-          pred_tuples: types.ScoredTextCandidates = pred[pred_key]
-          pred_list = list(map(lambda pred: pred[1], pred_tuples))
-          max_value: float = max(pred_list)
-          index: int = pred_list.index(max_value)
-          preds.append(index)
+          if not pred_spec.vocab:
+            raise ValueError(
+                f'SHAP requires a vocab for {pred_key} to explain sparse '
+                'multi-label predictions.')
+          # Convert list of class/score tuples to a dense list of scores for
+          # each possible label, in order by the class index.
+          scores = [0.0] * len(pred_spec.vocab)
+          for label, score in pred[pred_key]:
+            scores[pred_spec.vocab.index(label)] = float(score)
+          preds.append(scores)
         else:
           preds.append(pred[pred_key])
 
       return np.array(preds)
 
     explainer = shap.KernelExplainer(prediction_fn, background)
-    shap_values_by_example = explainer.shap_values(inputs_to_use)
+    shap_values = explainer.shap_values(inputs_to_use)
+
+    if shap_values.ndim == 3:
+      # Vector model output: shap_values has shape
+      # [num_examples, num_features, num_classes]. Select the class to explain,
+      # defaulting to the model's per-example argmax prediction.
+      if class_to_explain is None:
+        pred_matrix = prediction_fn(inputs_to_use.values)
+        argmax_by_example = np.argmax(pred_matrix, axis=1)
+        salience_by_example = shap_values[
+            np.arange(shap_values.shape[0]), :, argmax_by_example]
+      else:
+        salience_by_example = shap_values[:, :, int(class_to_explain)]
+    else:
+      # Scalar model output: shap_values has shape
+      # [num_examples, num_features].
+      salience_by_example = shap_values
+
     salience = [
         dict(zip(input_feats, example_shap_values))
-        for example_shap_values in shap_values_by_example
+        for example_shap_values in salience_by_example
     ]
     return [{'saliency': dtypes.FeatureSalience(s)} for s in salience]

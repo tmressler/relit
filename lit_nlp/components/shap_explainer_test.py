@@ -22,6 +22,8 @@ from lit_nlp.api import model as lit_model
 from lit_nlp.api import types as lit_types
 from lit_nlp.components import shap_explainer
 from lit_nlp.lib import testing_utils
+from lit_nlp.lib import utils
+import numpy as np
 
 
 _BAD_DATASET = lit_dataset.Dataset(
@@ -37,6 +39,11 @@ _GOOD_DATASET = lit_dataset.Dataset(
     examples=[{
         'val': 0.8675309
     }] * 10
+)
+
+_VARYING_DATASET = lit_dataset.Dataset(
+    spec={'val': lit_types.Scalar()},
+    examples=[{'val': v} for v in [0.1, 0.3, 0.5, 0.7, 0.9]],
 )
 
 
@@ -64,6 +71,34 @@ class _SparseMultilabelTestModel(testing_utils.ClassificationModelForTesting):
     return [{'preds': [('label', 0.8675309)]} for _ in inputs]
 
 
+class _MulticlassTabularModel(lit_model.BatchedModel):
+  """Tabular model whose class scores vary with the input value."""
+
+  def input_spec(self) -> lit_types.Spec:
+    return {'val': lit_types.Scalar()}
+
+  def output_spec(self) -> lit_types.Spec:
+    return {
+        'probas': lit_types.MulticlassPreds(vocab=['a', 'b'], null_idx=0),
+    }
+
+  def predict_minibatch(self, inputs, **kw):
+    return [{'probas': [1.0 - ex['val'], ex['val']]} for ex in inputs]
+
+
+class _SparseMultilabelTabularModel(lit_model.BatchedModel):
+  """Tabular model with sparse multi-label scores varying with the input."""
+
+  def input_spec(self) -> lit_types.Spec:
+    return {'val': lit_types.Scalar()}
+
+  def output_spec(self) -> lit_types.Spec:
+    return {'preds': lit_types.SparseMultilabelPreds(vocab=['x', 'y'])}
+
+  def predict_minibatch(self, inputs, **kw):
+    return [{'preds': [('y', ex['val'])]} for ex in inputs]
+
+
 class TabularShapExplainerTest(parameterized.TestCase):
 
   def setUp(self):
@@ -72,6 +107,8 @@ class TabularShapExplainerTest(parameterized.TestCase):
     self.regression_model = testing_utils.IdentityRegressionModelForTesting()
     self.shap = shap_explainer.TabularShapExplainer()
     self.sparse_model = _SparseMultilabelTestModel()
+    self.multiclass_model = _MulticlassTabularModel()
+    self.sparse_tabular_model = _SparseMultilabelTabularModel()
 
   @parameterized.named_parameters(
       # Empty model always fails
@@ -130,6 +167,18 @@ class TabularShapExplainerTest(parameterized.TestCase):
                     config={shap_explainer.EXPLAIN_KEY: 'not_in_mdl'})
 
   @parameterized.named_parameters(
+      ('with_class', {'field': 'probas', 'index': 1}),
+      ('without_class', {'field': 'probas'}),
+  )
+  def test_partial_salience_target_config_passes_validation(self, target):
+    # The Salience Maps module sends a partial config containing only
+    # '_salience_target' when settings have not been applied; this must pass
+    # server-side validation the same way it does for LIME.
+    config = {shap_explainer.TARGET_INFO_KEY: target}
+    utils.validate_config_against_spec(
+        config, self.shap.config_spec(), 'Tabular SHAP')
+
+  @parameterized.named_parameters(
       ('default', None, None),
       ('pred_key_only', 'score', None),
       ('sample_size_only', None, 3),
@@ -153,6 +202,68 @@ class TabularShapExplainerTest(parameterized.TestCase):
         self.dataset,
         config=config)
     self.assertLen(regress_salience, expected_length)
+
+  def _run_multiclass(self, field: str, index: Optional[int]):
+    target = {'field': field}
+    if index is not None:
+      target['index'] = index
+    config = {shap_explainer.TARGET_INFO_KEY: target}
+    results = self.shap.run(
+        _VARYING_DATASET.examples,
+        self.multiclass_model,
+        _VARYING_DATASET,
+        config=config)
+    return np.array([
+        list(result['saliency'].salience.values()) for result in results
+    ])
+
+  def test_class_to_explain_changes_results(self):
+    salience_class0 = self._run_multiclass('probas', 0)
+    salience_class1 = self._run_multiclass('probas', 1)
+    self.assertLen(salience_class0, len(_VARYING_DATASET.examples))
+    # Regression test for the bug where the class selection was ignored and
+    # both classes produced identical values.
+    self.assertFalse(np.allclose(salience_class0, salience_class1))
+    # With a single feature, the two classes' scores are negatives of each
+    # other, so their attributions must be as well.
+    np.testing.assert_allclose(salience_class0, -salience_class1, atol=1e-6)
+    self.assertGreater(np.abs(salience_class1).max(), 1e-6)
+
+  def test_no_class_index_explains_argmax(self):
+    salience_class0 = self._run_multiclass('probas', 0)
+    salience_class1 = self._run_multiclass('probas', 1)
+    salience_default = self._run_multiclass('probas', None)
+    for i, example in enumerate(_VARYING_DATASET.examples):
+      # probas are [1 - val, val], so class 1 is the argmax for val > 0.5.
+      expected = salience_class1[i] if example['val'] > 0.5 else (
+          salience_class0[i])
+      np.testing.assert_allclose(salience_default[i], expected, atol=1e-6)
+
+  def test_sparse_multilabel_class_scores(self):
+    config_class0 = {
+        shap_explainer.TARGET_INFO_KEY: {'field': 'preds', 'index': 0}
+    }
+    config_class1 = {
+        shap_explainer.TARGET_INFO_KEY: {'field': 'preds', 'index': 1}
+    }
+    salience_class0 = self.shap.run(
+        _VARYING_DATASET.examples,
+        self.sparse_tabular_model,
+        _VARYING_DATASET,
+        config=config_class0)
+    salience_class1 = self.shap.run(
+        _VARYING_DATASET.examples,
+        self.sparse_tabular_model,
+        _VARYING_DATASET,
+        config=config_class1)
+    self.assertLen(salience_class1, len(_VARYING_DATASET.examples))
+    # Class 'x' never receives a score, so its attribution is always zero.
+    for result in salience_class0:
+      self.assertAlmostEqual(result['saliency'].salience['val'], 0.0, delta=1e-6)
+    # Class 'y' scores vary with the input, so some attribution is nonzero.
+    self.assertTrue(
+        any(abs(result['saliency'].salience['val']) > 1e-6
+            for result in salience_class1))
 
 
 if __name__ == '__main__':
