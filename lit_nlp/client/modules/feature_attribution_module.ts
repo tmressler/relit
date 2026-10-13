@@ -29,7 +29,7 @@ import {LitModule} from '../core/lit_module';
 import {LegendType} from '../elements/color_legend';
 import {InterpreterClick, InterpreterSettings} from '../elements/interpreter_controls';
 import {SortableTemplateResult, TableData} from '../elements/table';
-import {FeatureSalience as FeatureSalienceLitType, LitTypeWithVocab, SingleFieldMatcher} from '../lib/lit_types';
+import {FeatureSalience as FeatureSalienceLitType, LitTypeWithVocab, SalienceTargetInfo, SingleFieldMatcher} from '../lib/lit_types';
 import {IndexedInput, ModelInfoMap} from '../lib/types';
 import * as utils from '../lib/utils';
 import {findSpecKeys} from '../lib/utils';
@@ -368,7 +368,13 @@ export class FeatureAttributionModule extends LitModule {
     const {configSpec, description} =
         this.appState.metadata.interpreters[interpreter];
     const clonedSpec = Object.assign({}, configSpec);
-    for (const fieldSpec of Object.values(clonedSpec)) {
+    for (const [fieldName, fieldSpec] of Object.entries(clonedSpec)) {
+      // Don't show interpreter controls for the special SalienceTargetInfo
+      // type; it is set by the Salience Maps module and has no renderer.
+      if (fieldSpec instanceof SalienceTargetInfo) {
+        delete clonedSpec[fieldName];
+        continue;
+      }
       // If the interpreter uses a field matcher, then get the matching field
       // names from the specified spec and use them as the vocab.
       if (fieldSpec instanceof SingleFieldMatcher) {

@@ -103,7 +103,7 @@ class TabularShapExplainer(lit_components.Interpreter):
 
   def config_spec(self) -> types.Spec:
     return {
-        TARGET_INFO_KEY: types.SalienceTargetInfo(),
+        TARGET_INFO_KEY: types.SalienceTargetInfo(required=False),
         EXPLAIN_KEY: types.SingleFieldMatcher(
             spec='output',
             types=[

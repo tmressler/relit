@@ -178,6 +178,14 @@ class TabularShapExplainerTest(parameterized.TestCase):
     utils.validate_config_against_spec(
         config, self.shap.config_spec(), 'Tabular SHAP')
 
+  def test_missing_salience_target_passes_validation(self):
+    # The Tabular Feature Attribution module runs the interpreter without a
+    # '_salience_target' config, falling back to explaining the first
+    # supported output field / the argmax prediction; this must pass
+    # server-side validation.
+    utils.validate_config_against_spec(
+        {}, self.shap.config_spec(), 'Tabular SHAP')
+
   @parameterized.named_parameters(
       ('default', None, None),
       ('pred_key_only', 'score', None),

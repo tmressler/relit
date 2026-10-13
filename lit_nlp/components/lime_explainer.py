@@ -413,7 +413,7 @@ class LIME(lit_components.Interpreter):
 
   def config_spec(self) -> types.Spec:
     return {
-        TARGET_INFO_KEY: types.SalienceTargetInfo(),
+        TARGET_INFO_KEY: types.SalienceTargetInfo(required=False),
         # TODO(b/205996131): remove TARGET_HEAD_KEY field
         TARGET_HEAD_KEY: types.SingleFieldMatcher(
             spec='output',

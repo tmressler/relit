@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from lit_nlp.api import model as lit_model
 from lit_nlp.api import types as lit_types
 from lit_nlp.components import lime_explainer
+from lit_nlp.lib import utils
 import numpy as np
 
 CLASS_KEY = lime_explainer.CLASS_KEY
@@ -125,6 +126,14 @@ class LimeExplainerTest(parameterized.TestCase):
     self.assertEqual([MODEL_TOKENIZATION, WHITESPACE_TOKENIZATION],
                      list(spec.vocab))
     self.assertEqual(MODEL_TOKENIZATION, spec.default)
+
+  def test_missing_salience_target_passes_validation(self):
+    # Modules like Tabular Feature Attribution run LIME without a
+    # '_salience_target' config, falling back to explaining the first
+    # supported output field / the model's prediction; this must pass
+    # server-side validation.
+    lime = lime_explainer.LIME()
+    utils.validate_config_against_spec({}, lime.config_spec(), 'LIME')
 
   def test_run_default_uses_model_tokens_when_available(self):
     # No tokenization setting provided: model tokens are the default when the
